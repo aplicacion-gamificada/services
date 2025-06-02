@@ -5,6 +5,7 @@ import lombok.*;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.sql.Date;
 
 public class UserResponseDto {
     /**
@@ -233,5 +234,200 @@ public class UserResponseDto {
 
         private Integer daysActive;
         private String mostActiveTimeOfDay;
+    }
+
+    /**
+     * Respuesta básica para búsqueda de usuarios
+     */
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    @ToString
+    public static class BasicUserResponseDto {
+        private Long id;
+        private String firstName;
+        private String lastName;
+        private String fullName;
+        private String email;
+        private String profilePictureUrl;
+        private String roleName;
+        private String roleCode;
+        private String institutionName;
+        private Boolean status;
+        
+        @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+        private LocalDateTime lastLoginAt;
+        
+        @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+        private LocalDateTime createdAt;
+    }
+    
+    /**
+     * Respuesta específica para perfil de estudiante
+     */
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    @ToString
+    public static class StudentResponseDto {
+        // Información básica del usuario
+        private Long id;
+        private String firstName;
+        private String lastName;
+        private String fullName;
+        private String email;
+        private String profilePictureUrl;
+        
+        // Información específica del estudiante
+        private Long studentProfileId;
+        private String username;
+        private Date birthday;
+        private Integer pointsAmount;
+        private Long guardianProfileId;
+        private String guardianName;
+        private String guardianEmail;
+        
+        // Información de institución y rol
+        private String roleName;
+        private String institutionName;
+        
+        // Estado de la cuenta
+        private Boolean status;
+        private Boolean emailVerified;
+        
+        @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+        private LocalDateTime lastLoginAt;
+        
+        @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+        private LocalDateTime createdAt;
+        
+        // Información académica
+        private Integer level;
+        private List<AchievementSummaryDto> recentAchievements;
+    }
+    
+    /**
+     * Respuesta específica para perfil de profesor
+     */
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    @ToString
+    public static class TeacherResponseDto {
+        // Información básica del usuario
+        private Long id;
+        private String firstName;
+        private String lastName;
+        private String fullName;
+        private String email;
+        private String profilePictureUrl;
+        
+        // Información específica del profesor
+        private Long teacherProfileId;
+        private Byte stemAreaId;
+        private String stemAreaName;
+        
+        // Información de institución y rol
+        private String roleName;
+        private String institutionName;
+        
+        // Estado de la cuenta
+        private Boolean status;
+        private Boolean emailVerified;
+        
+        @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+        private LocalDateTime lastLoginAt;
+        
+        @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+        private LocalDateTime createdAt;
+        
+        // Información académica
+        private Integer classroomsCount;
+        private Integer studentsCount;
+    }
+    
+    /**
+     * Respuesta específica para perfil de tutor
+     */
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    @ToString
+    public static class GuardianResponseDto {
+        // Información básica del usuario
+        private Long id;
+        private String firstName;
+        private String lastName;
+        private String fullName;
+        private String email;
+        private String profilePictureUrl;
+        
+        // Información específica del tutor
+        private Long guardianProfileId;
+        private String phone;
+        
+        // Información de institución y rol
+        private String roleName;
+        private String institutionName;
+        
+        // Estado de la cuenta
+        private Boolean status;
+        private Boolean emailVerified;
+        
+        @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+        private LocalDateTime lastLoginAt;
+        
+        @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+        private LocalDateTime createdAt;
+        
+        // Información de estudiantes asociados
+        private Integer studentsCount;
+        private List<StudentBasicInfoDto> students;
+    }
+    
+    /**
+     * Información básica de estudiante para listar en perfil de tutor
+     */
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    @ToString
+    public static class StudentBasicInfoDto {
+        private Long id;
+        private Long studentProfileId;
+        private String username;
+        private String fullName;
+        private Date birthday;
+        private Integer pointsAmount;
+    }
+    
+    /**
+     * Resumen de logro para listar en perfil de estudiante
+     */
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    @ToString
+    public static class AchievementSummaryDto {
+        private Long id;
+        private String name;
+        private String description;
+        private Integer pointsValue;
+        private String rarityTier;
+        
+        @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+        private LocalDateTime earnedAt;
     }
 }

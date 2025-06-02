@@ -216,4 +216,40 @@ public class AuthRequestDto {
         private String deviceInfo;
         private String userAgent;
     }
+
+    // Add a PasswordResetExecuteRequestDto
+    /**
+     * DTO para solicitudes de reseteo de contraseña con token
+     */
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    @ToString(exclude = {"resetToken", "newPassword", "confirmNewPassword"})
+    public static class PasswordResetExecuteRequestDto {
+
+        @NotBlank(message = "El token de reseteo es obligatorio")
+        private String resetToken;
+
+        @NotBlank(message = "El email es obligatorio")
+        @Email(message = "Formato de email inválido")
+        private String email;
+
+        @NotBlank(message = "La nueva contraseña es obligatoria")
+        @Size(min = 8, max = 128, message = "La contraseña debe tener entre 8 y 128 caracteres")
+        @Pattern(regexp = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@#$%^&+=!]).*$",
+                message = "La contraseña debe contener al menos: 1 minúscula, 1 mayúscula, 1 número y 1 carácter especial")
+        private String newPassword;
+
+        @NotBlank(message = "La confirmación de la nueva contraseña es obligatoria")
+        private String confirmNewPassword;
+
+        /**
+         * Valida que las nuevas contraseñas coincidan
+         */
+        public boolean isNewPasswordConfirmed() {
+            return newPassword != null && newPassword.equals(confirmNewPassword);
+        }
+    }
 }

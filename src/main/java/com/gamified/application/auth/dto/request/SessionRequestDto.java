@@ -1,6 +1,7 @@
 package com.gamified.application.auth.dto.request;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import lombok.*;
 
 public class SessionRequestDto {
@@ -39,5 +40,25 @@ public class SessionRequestDto {
         private Boolean logoutAllDevices = false; // true = cerrar sesión en todos los dispositivos
 
         private String deviceInfo;
+    }
+
+    /**
+     * DTO para renombrar una sesión
+     */
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    @ToString
+    public static class RenameSessionRequestDto {
+
+        @NotNull(message = "El ID de la sesión es obligatorio")
+        private Long sessionId;
+
+        @NotBlank(message = "El nuevo nombre de la sesión es obligatorio")
+        private String newName;
+
+        private Long userId; // Se establecerá internamente desde la autenticación
     }
 }
