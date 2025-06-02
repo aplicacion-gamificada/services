@@ -37,3 +37,5 @@ build/
 *.txt
 
 /src/main/java/com/gamified/application/auth/repository
+*.sql
+src/main/java/com/gamified/application/auth/db-numerino.sql

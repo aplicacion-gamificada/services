@@ -1,44 +1,45 @@
-package com.gamified.application.auth.entity;
+package com.gamified.application.auth.entity.core;
 
-
+import java.sql.Timestamp;
 import com.gamified.application.auth.entity.enums.RoleType;
-import lombok.*;
-import java.time.LocalDateTime;
 
 /**
  * POJO principal que representa a todos los usuarios del sistema
  * Incluye estudiantes, profesores y tutores
  */
-@Getter
-@Setter
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
-@ToString(exclude = {"password"})
-@EqualsAndHashCode(of = {"id", "email"})
 public class User {
 
+    // ID primario del usuario
     private Long id;
+    // Primer nombre del usuario
     private String firstName;
+    // Apellido(s) del usuario
     private String lastName;
+    // Email del usuario (puede ser NULL según SQL)
     private String email;
+    // Añadir contraseña al password
     private String password;
+    // URL de la foto de perfil
     private String profilePictureUrl;
+    // Estado del usuario (activo/inactivo)
     private Boolean status;
+    // 
     private Boolean emailVerified;
     private String emailVerificationToken;
-    private LocalDateTime emailVerificationExpiresAt;
+    private Timestamp emailVerificationExpiresAt;
     private String passwordResetToken;
-    private LocalDateTime passwordResetExpiresAt;
-    private LocalDateTime lastLoginAt;
+    private Timestamp passwordResetExpiresAt;
+    private Timestamp lastLoginAt;
     private String lastLoginIp;
     private Integer failedLoginAttempts;
-    private LocalDateTime accountLockedUntil;
-    private LocalDateTime createdAt;
-    private LocalDateTime updatedAt;
+    private Timestamp accountLockedUntil;
+    private Timestamp createdAt;
+    private Timestamp updatedAt;
 
     // IDs de relaciones (para stored procedures)
-    private Long roleId;
+    // ID del rol (FK a tabla 'role')
+    private Byte roleId;
+    // ID de la institución (FK a tabla 'institution')
     private Long institutionId;
 
     // Objetos relacionados (se cargan por separado si es necesario)
@@ -49,7 +50,7 @@ public class User {
      * Constructor para mapeo desde stored procedures (datos básicos)
      */
     public User(Long id, String firstName, String lastName, String email,
-                Long roleId, Long institutionId, Boolean status, Boolean emailVerified) {
+                Byte roleId, Long institutionId, Boolean status, Boolean emailVerified) {
         this.id = id;
         this.firstName = firstName;
         this.lastName = lastName;
@@ -65,9 +66,9 @@ public class User {
      * Constructor para autenticación (datos necesarios para login)
      */
     public User(Long id, String firstName, String lastName, String email, String password,
-                Long roleId, Long institutionId, Boolean status, Boolean emailVerified,
-                Integer failedLoginAttempts, LocalDateTime accountLockedUntil,
-                LocalDateTime lastLoginAt, String lastLoginIp) {
+                Byte roleId, Long institutionId, Boolean status, Boolean emailVerified,
+                Integer failedLoginAttempts, Timestamp accountLockedUntil,
+                Timestamp lastLoginAt, String lastLoginIp) {
         this.id = id;
         this.firstName = firstName;
         this.lastName = lastName;
@@ -88,11 +89,11 @@ public class User {
      */
     public User(Long id, String firstName, String lastName, String email, String password,
                 String profilePictureUrl, Boolean status, Boolean emailVerified,
-                String emailVerificationToken, LocalDateTime emailVerificationExpiresAt,
-                String passwordResetToken, LocalDateTime passwordResetExpiresAt,
-                LocalDateTime lastLoginAt, String lastLoginIp, Integer failedLoginAttempts,
-                LocalDateTime accountLockedUntil, LocalDateTime createdAt, LocalDateTime updatedAt,
-                Long roleId, Long institutionId) {
+                String emailVerificationToken, Timestamp emailVerificationExpiresAt,
+                String passwordResetToken, Timestamp passwordResetExpiresAt,
+                Timestamp lastLoginAt, String lastLoginIp, Integer failedLoginAttempts,
+                Timestamp accountLockedUntil, Timestamp createdAt, Timestamp updatedAt,
+                Byte roleId, Long institutionId) {
         this.id = id;
         this.firstName = firstName;
         this.lastName = lastName;
@@ -126,7 +127,7 @@ public class User {
         if (this.role != null) {
             return this.role.isStudent();
         }
-        return this.roleId != null && this.roleId.equals(RoleType.STUDENT.getId());
+        return this.roleId != null && RoleType.fromId(this.roleId) == RoleType.STUDENT;
     }
 
     /**
@@ -136,7 +137,7 @@ public class User {
         if (this.role != null) {
             return this.role.isTeacher();
         }
-        return this.roleId != null && this.roleId.equals(RoleType.TEACHER.getId());
+        return this.roleId != null && RoleType.fromId(this.roleId) == RoleType.TEACHER;
     }
 
     /**
@@ -146,7 +147,7 @@ public class User {
         if (this.role != null) {
             return this.role.isGuardian();
         }
-        return this.roleId != null && this.roleId.equals(RoleType.GUARDIAN.getId());
+        return this.roleId != null && RoleType.fromId(this.roleId) == RoleType.GUARDIAN;
     }
 
     /**
@@ -171,7 +172,7 @@ public class User {
      */
     public RoleType getRoleType() {
         if (this.role != null) {
-            return this.role.getName();
+            return RoleType.fromCode(this.role.getName());
         }
         if (this.roleId != null) {
             try {
@@ -205,7 +206,7 @@ public class User {
      * Verifica si la cuenta está bloqueada
      */
     public boolean isAccountLocked() {
-        return this.accountLockedUntil != null && this.accountLockedUntil.isAfter(LocalDateTime.now());
+        return this.accountLockedUntil != null && this.accountLockedUntil.after(Timestamp.valueOf(java.time.LocalDateTime.now()));
     }
 
     /**
@@ -241,7 +242,7 @@ public class User {
      * Registra un intento de login exitoso
      */
     public void recordSuccessfulLogin(String ipAddress) {
-        this.lastLoginAt = LocalDateTime.now();
+        this.lastLoginAt = Timestamp.valueOf(java.time.LocalDateTime.now());
         this.lastLoginIp = ipAddress;
         this.failedLoginAttempts = 0;
         this.accountLockedUntil = null;
@@ -255,7 +256,7 @@ public class User {
 
         // Bloquear cuenta después de 5 intentos fallidos
         if (this.failedLoginAttempts >= 5) {
-            this.accountLockedUntil = LocalDateTime.now().plusMinutes(30); // Bloquear por 30 minutos
+            this.accountLockedUntil = Timestamp.valueOf(java.time.LocalDateTime.now().plusMinutes(30)); // Bloquear por 30 minutos
         }
     }
 
@@ -276,7 +277,7 @@ public class User {
      */
     public void setEmailVerificationToken(String token, int expirationHours) {
         this.emailVerificationToken = token;
-        this.emailVerificationExpiresAt = LocalDateTime.now().plusHours(expirationHours);
+        this.emailVerificationExpiresAt = Timestamp.valueOf(java.time.LocalDateTime.now().plusHours(expirationHours));
     }
 
     /**
@@ -284,7 +285,7 @@ public class User {
      */
     public void setPasswordResetToken(String token, int expirationHours) {
         this.passwordResetToken = token;
-        this.passwordResetExpiresAt = LocalDateTime.now().plusHours(expirationHours);
+        this.passwordResetExpiresAt = Timestamp.valueOf(java.time.LocalDateTime.now().plusHours(expirationHours));
     }
 
     /**
@@ -294,7 +295,7 @@ public class User {
         return this.emailVerificationToken != null &&
                 this.emailVerificationToken.equals(token) &&
                 this.emailVerificationExpiresAt != null &&
-                this.emailVerificationExpiresAt.isAfter(LocalDateTime.now());
+                this.emailVerificationExpiresAt.after(Timestamp.valueOf(java.time.LocalDateTime.now()));
     }
 
     /**
@@ -304,7 +305,7 @@ public class User {
         return this.passwordResetToken != null &&
                 this.passwordResetToken.equals(token) &&
                 this.passwordResetExpiresAt != null &&
-                this.passwordResetExpiresAt.isAfter(LocalDateTime.now());
+                this.passwordResetExpiresAt.after(Timestamp.valueOf(java.time.LocalDateTime.now()));
     }
 
     /**
@@ -398,7 +399,8 @@ public class User {
         if (!isAccountLocked()) {
             return 0;
         }
-        return java.time.Duration.between(LocalDateTime.now(), this.accountLockedUntil).toMinutes();
+        java.time.Duration duration = java.time.Duration.between(java.time.LocalDateTime.now(), this.accountLockedUntil.toLocalDateTime());
+        return duration.toMinutes();
     }
 
     /**
@@ -408,7 +410,7 @@ public class User {
         return !isEmailVerified() &&
                 (emailVerificationToken == null ||
                         emailVerificationExpiresAt == null ||
-                        emailVerificationExpiresAt.isBefore(LocalDateTime.now()));
+                        emailVerificationExpiresAt.after(Timestamp.valueOf(java.time.LocalDateTime.now())));
     }
 
     /**
@@ -416,5 +418,111 @@ public class User {
      */
     public boolean canResetPassword() {
         return isActive() && isEmailVerified();
+    }
+
+    // Getters and Setters
+
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public Byte getRoleId() {
+        return roleId;
+    }
+
+    public void setRoleId(Byte roleId) {
+        this.roleId = roleId;
+    }
+
+    public Long getInstitutionId() {
+        return institutionId;
+    }
+
+    public void setInstitutionId(Long institutionId) {
+        this.institutionId = institutionId;
+    }
+
+    public String getFirstName() {
+        return firstName;
+    }
+
+    public void setFirstName(String firstName) {
+        this.firstName = firstName;
+    }
+
+    public String getLastName() {
+        return lastName;
+    }
+
+    public void setLastName(String lastName) {
+        this.lastName = lastName;
+    }
+
+    public String getEmail() {
+        return email;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
+    }
+
+    public String getPassword() {
+        return password;
+    }
+
+    public void setPassword(String password) {
+        this.password = password;
+    }
+
+    public String getProfilePictureUrl() {
+        return profilePictureUrl;
+    }
+
+    public void setProfilePictureUrl(String profilePictureUrl) {
+        this.profilePictureUrl = profilePictureUrl;
+    }
+
+    public Timestamp getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(Timestamp createdAt) {
+        this.createdAt = createdAt;
+    }
+
+    public Timestamp getUpdatedAt() {
+        return updatedAt;
+    }
+
+    public void setUpdatedAt(Timestamp updatedAt) {
+        this.updatedAt = updatedAt;
+    }
+
+    public Boolean getStatus() {
+        return status;
+    }
+
+    public void setStatus(Boolean status) {
+        this.status = status;
+    }
+
+    public Role getRole() {
+        return role;
+    }
+
+    public void setRole(Role role) {
+        this.role = role;
+    }
+
+    public Institution getInstitution() {
+        return institution;
+    }
+
+    public void setInstitution(Institution institution) {
+        this.institution = institution;
     }
 }

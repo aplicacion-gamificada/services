@@ -1,58 +1,29 @@
 package com.gamified.application.auth.entity.security;
 
-import com.gamified.application.auth.entity.User;
-import lombok.*;
-import java.time.LocalDateTime;
+import java.sql.Timestamp;
 
 /**
  * POJO para gestionar las verificaciones de email
  * Permite múltiples intentos y seguimiento detallado
  */
-@Getter
-@Setter
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
-@ToString
-@EqualsAndHashCode(of = {"id", "verificationToken"})
 public class EmailVerification {
 
     private Long id;
     private Long userId;
     private String email;
     private String verificationToken;
-    private LocalDateTime expiresAt;
+    private Timestamp expiresAt;
     private Boolean isVerified;
-    private LocalDateTime verifiedAt;
+    private Timestamp verifiedAt;
     private Integer attemptCount;
-    private LocalDateTime lastAttemptAt;
-    private LocalDateTime createdAt;
+    private Timestamp lastAttemptAt;
+    private Timestamp createdAt;
     private String ipAddress;
     private String userAgent;
 
-    // Objeto relacionado (se carga por separado si es necesario)
-    private User user;
-
-    /**
-     * Constructor para mapeo desde stored procedures (datos básicos)
-     */
     public EmailVerification(Long id, Long userId, String email, String verificationToken,
-                             LocalDateTime expiresAt, Boolean isVerified, Integer attemptCount) {
-        this.id = id;
-        this.userId = userId;
-        this.email = email;
-        this.verificationToken = verificationToken;
-        this.expiresAt = expiresAt;
-        this.isVerified = isVerified;
-        this.attemptCount = attemptCount != null ? attemptCount : 0;
-    }
-
-    /**
-     * Constructor completo para mapeo desde stored procedures
-     */
-    public EmailVerification(Long id, Long userId, String email, String verificationToken,
-                             LocalDateTime expiresAt, Boolean isVerified, LocalDateTime verifiedAt,
-                             Integer attemptCount, LocalDateTime lastAttemptAt, LocalDateTime createdAt,
+                             Timestamp expiresAt, Boolean isVerified, Timestamp verifiedAt,
+                             Integer attemptCount, Timestamp lastAttemptAt, Timestamp createdAt,
                              String ipAddress, String userAgent) {
         this.id = id;
         this.userId = userId;
@@ -61,7 +32,7 @@ public class EmailVerification {
         this.expiresAt = expiresAt;
         this.isVerified = isVerified;
         this.verifiedAt = verifiedAt;
-        this.attemptCount = attemptCount != null ? attemptCount : 0;
+        this.attemptCount = attemptCount;
         this.lastAttemptAt = lastAttemptAt;
         this.createdAt = createdAt;
         this.ipAddress = ipAddress;
@@ -69,25 +40,10 @@ public class EmailVerification {
     }
 
     /**
-     * Constructor personalizado
-     */
-    public EmailVerification(Long userId, String email, String verificationToken,
-                             LocalDateTime expiresAt, String ipAddress, String userAgent) {
-        this.userId = userId;
-        this.email = email;
-        this.verificationToken = verificationToken;
-        this.expiresAt = expiresAt;
-        this.ipAddress = ipAddress;
-        this.userAgent = userAgent;
-        this.isVerified = false;
-        this.attemptCount = 0;
-    }
-
-    /**
      * Verifica si el token está expirado
      */
     public boolean isExpired() {
-        return LocalDateTime.now().isAfter(this.expiresAt);
+        return this.expiresAt != null && this.expiresAt.before(Timestamp.valueOf(java.time.LocalDateTime.now()));
     }
 
     /**
@@ -109,7 +65,7 @@ public class EmailVerification {
      */
     public void markAsVerified() {
         this.isVerified = true;
-        this.verifiedAt = LocalDateTime.now();
+        this.verifiedAt = Timestamp.valueOf(java.time.LocalDateTime.now());
     }
 
     /**
@@ -117,7 +73,7 @@ public class EmailVerification {
      */
     public void recordAttempt() {
         this.attemptCount = (this.attemptCount != null ? this.attemptCount : 0) + 1;
-        this.lastAttemptAt = LocalDateTime.now();
+        this.lastAttemptAt = Timestamp.valueOf(java.time.LocalDateTime.now());
     }
 
     /**
@@ -134,16 +90,8 @@ public class EmailVerification {
         if (isExpired()) {
             return 0;
         }
-        return java.time.Duration.between(LocalDateTime.now(), this.expiresAt).toHours();
-    }
-
-    /**
-     * Verifica si el email coincide con el usuario actual
-     */
-    public boolean emailMatchesUser() {
-        return this.user != null &&
-                this.email != null &&
-                this.email.equalsIgnoreCase(this.user.getEmail());
+        java.time.Duration duration = java.time.Duration.between(java.time.LocalDateTime.now(), this.expiresAt.toLocalDateTime());
+        return duration.toHours();
     }
 
     /**
@@ -159,5 +107,101 @@ public class EmailVerification {
         } else {
             return "Pendiente";
         }
+    }
+
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public Long getUserId() {
+        return userId;
+    }
+
+    public void setUserId(Long userId) {
+        this.userId = userId;
+    }
+
+    public String getEmail() {
+        return email;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
+    }
+
+    public String getVerificationToken() {
+        return verificationToken;
+    }
+
+    public void setVerificationToken(String verificationToken) {
+        this.verificationToken = verificationToken;
+    }
+
+    public Timestamp getExpiresAt() {
+        return expiresAt;
+    }
+
+    public void setExpiresAt(Timestamp expiresAt) {
+        this.expiresAt = expiresAt;
+    }
+
+    public Boolean getIsVerified() {
+        return isVerified;
+    }
+
+    public void setIsVerified(Boolean isVerified) {
+        this.isVerified = isVerified;
+    }
+
+    public Timestamp getVerifiedAt() {
+        return verifiedAt;
+    }
+
+    public void setVerifiedAt(Timestamp verifiedAt) {
+        this.verifiedAt = verifiedAt;
+    }
+
+    public Integer getAttemptCount() {
+        return attemptCount;
+    }
+
+    public void setAttemptCount(Integer attemptCount) {
+        this.attemptCount = attemptCount;
+    }
+
+    public Timestamp getLastAttemptAt() {
+        return lastAttemptAt;
+    }
+
+    public void setLastAttemptAt(Timestamp lastAttemptAt) {
+        this.lastAttemptAt = lastAttemptAt;
+    }
+
+    public Timestamp getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(Timestamp createdAt) {
+        this.createdAt = createdAt;
+    }
+
+    public String getIpAddress() {
+        return ipAddress;
+    }
+
+    public void setIpAddress(String ipAddress) {
+        this.ipAddress = ipAddress;
+    }
+
+    public String getUserAgent() {
+        return userAgent;
+    }
+
+    public void setUserAgent(String userAgent) {
+        this.userAgent = userAgent;
     }
 }

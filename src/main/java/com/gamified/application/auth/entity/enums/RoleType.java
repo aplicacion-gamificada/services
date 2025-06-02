@@ -1,21 +1,26 @@
 package com.gamified.application.auth.entity.enums;
 
-
 /**
  * Enum que define los roles disponibles en el sistema
  * Solo permite: Student, Teacher y Guardian
  */
 public enum RoleType {
-    STUDENT("student", "Estudiante del sistema"),
-    TEACHER("teacher", "Docente/Profesor del sistema"),
-    GUARDIAN("guardian", "Tutor/Apoderado del estudiante");
+    STUDENT((byte) 1, "STUDENT", "Estudiante del sistema"),
+    TEACHER((byte) 2, "TEACHER", "Profesor o educador"),
+    GUARDIAN((byte) 3, "GUARDIAN", "Tutor o apoderado");
 
+    private final Byte id;
     private final String code;
     private final String description;
 
-    RoleType(String code, String description) {
+    RoleType(Byte id, String code, String description) {
+        this.id = id;
         this.code = code;
         this.description = description;
+    }
+
+    public Byte getId() {
+        return id;
     }
 
     public String getCode() {
@@ -26,32 +31,22 @@ public enum RoleType {
         return description;
     }
 
-    public static RoleType fromCode(String code) {
-        for (RoleType role : values()) {
-            if (role.code.equalsIgnoreCase(code)) {
-                return role;
+    public static RoleType fromId(Byte id) {
+        for (RoleType type : RoleType.values()) {
+            if (type.getId().equals(id)) {
+                return type;
             }
         }
-        throw new IllegalArgumentException("Rol no válido: " + code);
+        throw new IllegalArgumentException("No RoleType with id " + id);
     }
 
-    public static RoleType fromId(Long id) {
-        if (id == null) return null;
-
-        switch (id.intValue()) {
-            case 1: return STUDENT;
-            case 2: return TEACHER;
-            case 3: return GUARDIAN;
-            default: throw new IllegalArgumentException("ID de rol no válido: " + id);
+    public static RoleType fromCode(String code) {
+        for (RoleType type : RoleType.values()) {
+            if (type.getCode().equalsIgnoreCase(code)) {
+                return type;
+            }
         }
-    }
-
-    public Long getId() {
-        switch (this) {
-            case STUDENT: return 1L;
-            case TEACHER: return 2L;
-            case GUARDIAN: return 3L;
-            default: return null;
-        }
+        throw new IllegalArgumentException("No RoleType with code " + code);
     }
 }
+

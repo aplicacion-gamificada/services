@@ -95,6 +95,7 @@ public class CommonResponseDto {
         /**
          * DTO para información de sesión activa
          */
+        /*
         @Getter
         @Setter
         @NoArgsConstructor
@@ -131,5 +132,6 @@ public class CommonResponseDto {
             private Boolean isActive;
             private String sessionStatus; // "active", "expired", "terminated"
         }
+        */
     }
 }

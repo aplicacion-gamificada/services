@@ -1,4 +1,4 @@
-package com.gamified.application.auth.entity;
+package com.gamified.application.auth.entity.core;
 
 
 import lombok.*;

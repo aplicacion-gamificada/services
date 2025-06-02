@@ -1,6 +1,6 @@
 package com.gamified.application.auth.entity.audit;
 
-import com.gamified.application.auth.entity.User;
+import com.gamified.application.auth.entity.core.User;
 import com.gamified.application.auth.entity.enums.ActionType;
 import lombok.*;
 

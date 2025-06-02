@@ -1,8 +1,9 @@
 package com.gamified.application.auth.entity.security;
 
-import com.gamified.application.auth.entity.User;
+import com.gamified.application.auth.entity.core.User;
 import lombok.*;
 import java.time.LocalDateTime;
+import java.sql.Timestamp;
 
 /**
  * POJO para gestionar los refresh tokens de los usuarios
@@ -20,16 +21,17 @@ public class RefreshToken {
     private Long id;
     private String token;
     private Long userId;
-    private LocalDateTime expiresAt;
+    private Timestamp expiresAt;
     private Boolean isRevoked;
     private LocalDateTime revokedAt;
     private String revokedReason;
-    private LocalDateTime createdAt;
+    private Timestamp createdAt;
     private LocalDateTime lastUsedAt;
     private String ipAddress;
     private String userAgent;
     private String deviceInfo;
     private String sessionName;
+    private Boolean isValid;
 
     // Objeto relacionado (se carga por separado si es necesario)
     private User user;
@@ -37,8 +39,8 @@ public class RefreshToken {
     /**
      * Constructor para mapeo desde stored procedures (datos básicos)
      */
-    public RefreshToken(Long id, String token, Long userId, LocalDateTime expiresAt,
-                        Boolean isRevoked, LocalDateTime createdAt) {
+    public RefreshToken(Long id, String token, Long userId, Timestamp expiresAt,
+                        Boolean isRevoked, Timestamp createdAt) {
         this.id = id;
         this.token = token;
         this.userId = userId;
@@ -50,9 +52,9 @@ public class RefreshToken {
     /**
      * Constructor completo para mapeo desde stored procedures
      */
-    public RefreshToken(Long id, String token, Long userId, LocalDateTime expiresAt,
+    public RefreshToken(Long id, String token, Long userId, Timestamp expiresAt,
                         Boolean isRevoked, LocalDateTime revokedAt, String revokedReason,
-                        LocalDateTime createdAt, LocalDateTime lastUsedAt, String ipAddress,
+                        Timestamp createdAt, LocalDateTime lastUsedAt, String ipAddress,
                         String userAgent, String deviceInfo, String sessionName) {
         this.id = id;
         this.token = token;
@@ -72,7 +74,7 @@ public class RefreshToken {
     /**
      * Constructor personalizado
      */
-    public RefreshToken(String token, Long userId, LocalDateTime expiresAt,
+    public RefreshToken(String token, Long userId, Timestamp expiresAt,
                         String ipAddress, String userAgent, String deviceInfo) {
         this.token = token;
         this.userId = userId;
@@ -87,7 +89,7 @@ public class RefreshToken {
      * Verifica si el token está expirado
      */
     public boolean isExpired() {
-        return LocalDateTime.now().isAfter(this.expiresAt);
+        return LocalDateTime.now().isAfter(this.expiresAt.toLocalDateTime());
     }
 
     /**
@@ -168,7 +170,7 @@ public class RefreshToken {
         if (isExpired()) {
             return 0;
         }
-        return java.time.Duration.between(LocalDateTime.now(), this.expiresAt).toDays();
+        return java.time.Duration.between(LocalDateTime.now(), this.expiresAt.toLocalDateTime()).toDays();
     }
 
     /**
@@ -178,6 +180,6 @@ public class RefreshToken {
         if (isExpired()) {
             return 0;
         }
-        return java.time.Duration.between(LocalDateTime.now(), this.expiresAt).toHours();
+        return java.time.Duration.between(LocalDateTime.now(), this.expiresAt.toLocalDateTime()).toHours();
     }
 }
