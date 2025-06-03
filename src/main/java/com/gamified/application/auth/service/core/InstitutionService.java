@@ -1,5 +1,6 @@
 package com.gamified.application.auth.service.core;
 
+import com.gamified.application.auth.dto.request.InstitutionRequestDto;
 import com.gamified.application.auth.dto.response.InstitutionResponseDto;
 
 import java.util.List;
@@ -29,4 +30,12 @@ public interface InstitutionService {
      * @return Lista de instituciones que coinciden con la búsqueda
      */
     List<InstitutionResponseDto.InstitutionSummaryDto> searchInstitutions(String query, int limit);
+    
+    /**
+     * Registra una nueva institución
+     * @param requestDto Datos de la institución a registrar
+     * @return La institución registrada
+     */
+    InstitutionResponseDto.InstitutionDetailDto registerInstitution(
+            InstitutionRequestDto.InstitutionRegistrationRequestDto requestDto);
 } 

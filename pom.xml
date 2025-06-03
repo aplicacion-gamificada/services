@@ -80,7 +80,14 @@
 		<dependency>
 			<groupId>com.microsoft.sqlserver</groupId>
 			<artifactId>mssql-jdbc</artifactId>
-			<scope>runtime</scope>
+			<version>12.10.0.jre11</version>
+		</dependency>
+		<!-- Para autenticación integrada con Windows -->
+		<dependency>
+			<groupId>com.microsoft.sqlserver</groupId>
+			<artifactId>mssql-jdbc_auth</artifactId>
+			<version>12.8.1.x64</version>
+			<type>dll</type>
 		</dependency>
 
 		<!-- JWT Dependencies -->

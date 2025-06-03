@@ -525,4 +525,20 @@ public class User {
     public void setInstitution(Institution institution) {
         this.institution = institution;
     }
+
+    public Timestamp getLastLoginAt() {
+        return lastLoginAt;
+    }
+
+    public void setLastLoginAt(Timestamp lastLoginAt) {
+        this.lastLoginAt = lastLoginAt;
+    }
+
+    public String getLastLoginIp() {
+        return lastLoginIp;
+    }
+
+    public void setLastLoginIp(String lastLoginIp) {
+        this.lastLoginIp = lastLoginIp;
+    }
 }

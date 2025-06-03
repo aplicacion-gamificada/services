@@ -12,13 +12,14 @@ import java.util.Map;
 
 /**
  * DTO para respuestas comunes a operaciones
+ * @param <T> Tipo de datos que puede contener la respuesta
  */
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 @JsonInclude(JsonInclude.Include.NON_NULL)
-public class CommonResponseDto {
+public class CommonResponseDto<T> {
     
     private Boolean success;
     private String message;
@@ -31,6 +32,7 @@ public class CommonResponseDto {
     private Long entityId;
     private String entityType;
     
+    private T data;
     private Map<String, Object> additionalData;
     
     /**
@@ -41,5 +43,15 @@ public class CommonResponseDto {
         this.message = message;
         this.timestamp = LocalDateTime.now();
         this.additionalData = additionalData;
+    }
+    
+    /**
+     * Constructor con datos genéricos
+     */
+    public CommonResponseDto(Boolean success, String message, T data) {
+        this.success = success;
+        this.message = message;
+        this.timestamp = LocalDateTime.now();
+        this.data = data;
     }
 }
