@@ -285,7 +285,7 @@ public class UserResponseDto {
         // Información específica del estudiante
         private Long studentProfileId;
         private String username;
-        private Date birthday;
+        private Date birth_date;
         private Integer pointsAmount;
         private Long guardianProfileId;
         private String guardianName;
@@ -407,7 +407,7 @@ public class UserResponseDto {
         private Long studentProfileId;
         private String username;
         private String fullName;
-        private Date birthday;
+        private Date birth_date;
         private Integer pointsAmount;
     }
     

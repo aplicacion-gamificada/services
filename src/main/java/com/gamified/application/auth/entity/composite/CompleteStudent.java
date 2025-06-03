@@ -22,7 +22,7 @@ public class CompleteStudent {
             String lastLoginIp, Integer failedLoginAttempts, Timestamp accountLockedUntil,
             // StudentProfile specific fields
             Long studentProfileId, Long studentUserId, Long guardianProfileId,
-            String username, Date birthday, Integer pointsAmount, Timestamp studentCreatedAt, Timestamp studentUpdatedAt,
+            String username, Date birth_date, Integer pointsAmount, Timestamp studentCreatedAt, Timestamp studentUpdatedAt,
             // Related objects for User (optional, for convenience)
             Role role, Institution institution
     ) {
@@ -38,7 +38,7 @@ public class CompleteStudent {
         this.studentProfile.setUserId(studentUserId);
         this.studentProfile.setGuardianProfileId(guardianProfileId);
         this.studentProfile.setUsername(username);
-        this.studentProfile.setBirthday(birthday);
+        this.studentProfile.setBirthDate(birth_date);
         this.studentProfile.setPointsAmount(pointsAmount);
         this.studentProfile.setCreatedAt(studentCreatedAt);
         this.studentProfile.setUpdatedAt(studentUpdatedAt);

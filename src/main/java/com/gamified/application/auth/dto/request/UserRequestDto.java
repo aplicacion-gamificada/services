@@ -131,7 +131,7 @@ public class UserRequestDto {
         @Pattern(regexp = "^[a-zA-Z0-9._-]*$", message = "El nombre de usuario solo puede contener letras, números, puntos, guiones y guiones bajos")
         private String username;
         
-        private Date birthday;
+        private Date birth_date;
         
         // Datos de institución
         @NotNull(message = "El ID de institución es obligatorio")
@@ -268,7 +268,7 @@ public class UserRequestDto {
         @Pattern(regexp = "^[a-zA-Z0-9._-]*$", message = "El nombre de usuario solo puede contener letras, números, puntos, guiones y guiones bajos")
         private String username;
         
-        private Date birthday;
+        private Date birth_date;
         
         @Size(max = 1024, message = "La URL de la foto de perfil no puede exceder 1024 caracteres")
         @Pattern(regexp = "^https?://.*\\.(jpg|jpeg|png|gif|webp)$",

@@ -11,6 +11,14 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.simple.SimpleJdbcCall;
+
+import javax.sql.DataSource;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Controlador para operaciones de autenticación
@@ -18,9 +26,12 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
+@Tag(name = "Authentication", description = "Authentication API")
 public class AuthController {
 
     private final AuthenticationService authenticationService;
+    private final JdbcTemplate jdbcTemplate;
+    private final DataSource dataSource;
 
     /**
      * Endpoint para iniciar sesión
@@ -237,5 +248,72 @@ public class AuthController {
         }
         
         return deviceInfo;
+    }
+
+    @GetMapping("/health")
+    @Operation(summary = "Health check endpoint", description = "Verifies if the auth service is running properly")
+    public ResponseEntity<Map<String, Object>> healthCheck() {
+        Map<String, Object> response = new HashMap<>();
+        response.put("status", "UP");
+        response.put("service", "Auth Service");
+        response.put("timestamp", System.currentTimeMillis());
+        
+        return ResponseEntity.ok(response);
+    }
+    
+    @GetMapping("/db-test")
+    @Operation(summary = "Database connection test", description = "Tests the connection to the database")
+    public ResponseEntity<Map<String, Object>> testDatabaseConnection() {
+        Map<String, Object> response = new HashMap<>();
+        
+        try {
+            // Test query to check if roles table exists and has records
+            Integer roleCount = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM role", Integer.class);
+            
+            response.put("status", "SUCCESS");
+            response.put("message", "Database connection successful");
+            response.put("roleCount", roleCount);
+            response.put("timestamp", System.currentTimeMillis());
+            
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            response.put("status", "ERROR");
+            response.put("message", "Database connection failed");
+            response.put("error", e.getMessage());
+            response.put("timestamp", System.currentTimeMillis());
+            
+            return ResponseEntity.status(500).body(response);
+        }
+    }
+    
+    @GetMapping("/sp-test")
+    @Operation(summary = "Stored procedure test", description = "Tests if stored procedures are working")
+    public ResponseEntity<Map<String, Object>> testStoredProcedures() {
+        Map<String, Object> response = new HashMap<>();
+        
+        try {
+            // Test if one of our stored procedures exists and executes
+            SimpleJdbcCall jdbcCall = new SimpleJdbcCall(dataSource)
+                    .withProcedureName("sp_detect_suspicious_login_patterns");
+            
+            Map<String, Object> params = new HashMap<>();
+            params.put("user_id", 1);  // Using a dummy user_id of 1
+            
+            Map<String, Object> result = jdbcCall.execute(params);
+            
+            response.put("status", "SUCCESS");
+            response.put("message", "Stored procedure call successful");
+            response.put("procedureResult", result);
+            response.put("timestamp", System.currentTimeMillis());
+            
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            response.put("status", "ERROR");
+            response.put("message", "Stored procedure call failed");
+            response.put("error", e.getMessage());
+            response.put("timestamp", System.currentTimeMillis());
+            
+            return ResponseEntity.status(500).body(response);
+        }
     }
 } 

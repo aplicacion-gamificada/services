@@ -10,17 +10,17 @@ public class PasswordHistory {
 
     private Long id;
     private Long userId;
-    private String passwordHash;
+    private String password;
     private Timestamp changedAt;
     private Boolean changedByAdmin;
     private String ipAddress;
     private String userAgent;
 
-    public PasswordHistory(Long id, Long userId, String passwordHash, Timestamp changedAt,
+    public PasswordHistory(Long id, Long userId, String password, Timestamp changedAt,
                            Boolean changedByAdmin, String ipAddress, String userAgent) {
         this.id = id;
         this.userId = userId;
-        this.passwordHash = passwordHash;
+        this.password = password;
         this.changedAt = changedAt;
         this.changedByAdmin = changedByAdmin;
         this.ipAddress = ipAddress;
@@ -74,12 +74,12 @@ public class PasswordHistory {
         this.userId = userId;
     }
 
-    public String getPasswordHash() {
-        return passwordHash;
+    public String getPassword() {
+        return password;
     }
 
-    public void setPasswordHash(String passwordHash) {
-        this.passwordHash = passwordHash;
+    public void setPassword(String password) {
+        this.password = password;
     }
 
     public Timestamp getChangedAt() {

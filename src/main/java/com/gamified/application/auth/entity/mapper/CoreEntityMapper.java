@@ -301,7 +301,7 @@ public interface CoreEntityMapper {
         return new PasswordHistory(
                 rs.getLong("id"),
                 rs.getLong("user_id"),
-                rs.getString("password_hash"),
+                rs.getString("password"),
                 toTimestamp(getLocalDateTime(rs, "created_at")), // Assuming 'created_at' in DB maps to 'changedAt' in entity
                 rs.getBoolean("changed_by_admin"),
                 rs.getString("ip_address"),

@@ -8,7 +8,7 @@ public class StudentProfile {
     private Long userId;
     private Long guardianProfileId;
     private String username;
-    private Date birthday;
+    private Date birth_date;
     private Integer pointsAmount;
     private Timestamp createdAt;
     private Timestamp updatedAt;
@@ -47,12 +47,12 @@ public class StudentProfile {
         this.username = username;
     }
 
-    public Date getBirthday() {
-        return birthday;
+    public Date getBirthDate() {
+        return birth_date;
     }
 
-    public void setBirthday(Date birthday) {
-        this.birthday = birthday;
+    public void setBirthDate(Date birth_date) {
+        this.birth_date = birth_date;
     }
 
     public Integer getPointsAmount() {
