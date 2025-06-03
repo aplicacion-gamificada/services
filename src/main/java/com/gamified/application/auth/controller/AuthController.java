@@ -40,7 +40,7 @@ public class AuthController {
      * @return Token JWT y datos básicos del usuario
      */
     @PostMapping("/login")
-    public ResponseEntity<AuthResponseDto> login(
+    public ResponseEntity<AuthResponseDto.LoginResponseDto> login(
             @Valid @RequestBody AuthRequestDto.LoginRequestDto loginRequest,
             HttpServletRequest request) {
         
@@ -48,7 +48,7 @@ public class AuthController {
         enrichRequestWithClientInfo(loginRequest, request);
         
         // Procesar login
-        AuthResponseDto response = authenticationService.login(loginRequest);
+        AuthResponseDto.LoginResponseDto response = authenticationService.login(loginRequest);
         return ResponseEntity.ok(response);
     }
 
@@ -88,7 +88,7 @@ public class AuthController {
      * @return Nuevos tokens
      */
     @PostMapping("/refresh-token")
-    public ResponseEntity<SessionResponseDto> refreshToken(
+    public ResponseEntity<SessionResponseDto.RefreshTokenResponseDto> refreshToken(
             @Valid @RequestBody SessionRequestDto.RefreshTokenRequestDto refreshRequest,
             HttpServletRequest request) {
         
@@ -96,7 +96,7 @@ public class AuthController {
         enrichRequestWithClientInfo(refreshRequest, request);
         
         // Procesar refresh token
-        SessionResponseDto response = authenticationService.refreshToken(refreshRequest);
+        SessionResponseDto.RefreshTokenResponseDto response = authenticationService.refreshToken(refreshRequest);
         return ResponseEntity.ok(response);
     }
 

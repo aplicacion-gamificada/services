@@ -16,7 +16,7 @@ public interface AuthenticationService {
      * @param authRequest Credenciales del usuario (email y password)
      * @return Respuesta con tokens y datos básicos del usuario
      */
-    AuthResponseDto login(AuthRequestDto.LoginRequestDto authRequest);
+    AuthResponseDto.LoginResponseDto login(AuthRequestDto.LoginRequestDto authRequest);
     
     /**
      * Registra un nuevo usuario según su rol
@@ -30,7 +30,7 @@ public interface AuthenticationService {
      * @param refreshRequest Refresh token actual
      * @return Nuevos tokens generados
      */
-    SessionResponseDto refreshToken(SessionRequestDto.RefreshTokenRequestDto refreshRequest);
+    SessionResponseDto.RefreshTokenResponseDto refreshToken(SessionRequestDto.RefreshTokenRequestDto refreshRequest);
     
     /**
      * Cierra la sesión del usuario
