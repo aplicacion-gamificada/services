@@ -11,6 +11,8 @@ import com.gamified.application.auth.entity.core.Role;
 import com.gamified.application.auth.entity.core.User;
 import com.gamified.application.auth.entity.enums.RoleType;
 import com.gamified.application.auth.entity.profiles.GuardianProfile;
+import com.gamified.application.auth.entity.profiles.StudentProfile;
+import com.gamified.application.auth.entity.profiles.TeacherProfile;
 import com.gamified.application.auth.repository.composite.CompleteUserRepository;
 import com.gamified.application.auth.repository.core.InstitutionRepository;
 import com.gamified.application.auth.repository.core.RoleRepository;
@@ -40,46 +42,142 @@ public class UserRegistrationServiceImpl implements UserRegistrationService {
     
     @Override
     public UserResponseDto.StudentResponseDto registerStudent(UserRequestDto.StudentRegistrationRequestDto studentRequest) {
-        // Implementación temporal para pruebas
-        return UserResponseDto.StudentResponseDto.builder()
-                .id(1L)
-                .firstName(studentRequest.getFirstName())
-                .lastName(studentRequest.getLastName())
-                .fullName(studentRequest.getFirstName() + " " + studentRequest.getLastName())
-                .email(studentRequest.getEmail())
-                .studentProfileId(1L)
-                .username(studentRequest.getUsername())
-                .birth_date(studentRequest.getBirth_date())
-                .pointsAmount(0)
-                .roleName(RoleType.STUDENT.getCode())
-                .institutionName("Institución Demo")
-                .status(true)
-                .emailVerified(false)
-                .createdAt(LocalDateTime.now())
-                .recentAchievements(new ArrayList<>())
-                .build();
+        // Verificar si el email ya está en uso
+        if (!isEmailAvailable(studentRequest.getEmail())) {
+            throw new IllegalArgumentException("El email ya está en uso");
+        }
+
+        // Obtener la institución
+        Optional<Institution> institutionOpt = institutionRepository.findById(studentRequest.getInstitutionId());
+        if (institutionOpt.isEmpty()) {
+            throw new IllegalArgumentException("La institución especificada no existe");
+        }
+        Institution institution = institutionOpt.get();
+
+        // Obtener el rol de estudiante
+        Optional<Role> roleOpt = roleRepository.findByName(RoleType.STUDENT.getCode());
+        if (roleOpt.isEmpty()) {
+            throw new IllegalArgumentException("El rol de estudiante no está configurado en el sistema");
+        }
+        Role role = roleOpt.get();
+
+        // Crear usuario base y perfil de estudiante
+        Timestamp now = new Timestamp(System.currentTimeMillis());
+        
+        // Crear el CompleteStudent
+        CompleteStudent completeStudent = new CompleteStudent(
+            null, // id (se asignará al guardar)
+            role.getId(),
+            institution.getId(),
+            studentRequest.getFirstName(),
+            studentRequest.getLastName(),
+            studentRequest.getEmail(),
+            passwordEncoder.encode(studentRequest.getPassword()),
+            null, // profilePictureUrl
+            now, // createdAt
+            now, // updatedAt
+            true, // status
+            false, // emailVerified
+            null, // emailVerificationToken
+            null, // emailVerificationExpiresAt
+            null, // passwordResetToken
+            null, // passwordResetExpiresAt
+            null, // lastLoginAt
+            null, // lastLoginIp
+            null, // failedLoginAttempts
+            null, // accountLockedUntil
+            null, // studentProfileId (se asignará al guardar)
+            null, // studentUserId (se asignará al guardar)
+            null, // guardianProfileId (se asignará al guardar)
+            studentRequest.getUsername(),
+            studentRequest.getBirth_date(),
+            null, // pointsAmount
+            null, // studentCreatedAt
+            null, // studentUpdatedAt
+            role, // Role
+            institution // Institution
+        );
+        
+        // Guardar el estudiante completo
+        Result<CompleteStudent> result = completeUserRepository.createCompleteStudent(completeStudent);
+        
+        if (!result.isSuccess()) {
+            throw new RuntimeException("Error al registrar el estudiante: " + result.getErrorMessage());
+        }
+        
+        CompleteStudent savedStudent = result.getData();
+        
+        // Mapear a DTO de respuesta
+        return mapToStudentResponseDto(savedStudent);
     }
     
     @Override
     public UserResponseDto.TeacherResponseDto registerTeacher(UserRequestDto.TeacherRegistrationRequestDto teacherRequest) {
-        // Implementación temporal para pruebas
-        return UserResponseDto.TeacherResponseDto.builder()
-                .id(1L)
-                .firstName(teacherRequest.getFirstName())
-                .lastName(teacherRequest.getLastName())
-                .fullName(teacherRequest.getFirstName() + " " + teacherRequest.getLastName())
-                .email(teacherRequest.getEmail())
-                .teacherProfileId(1L)
-                .stemAreaId(teacherRequest.getStemAreaId())
-                .stemAreaName("Área STEM Demo")
-                .roleName(RoleType.TEACHER.getCode())
-                .institutionName("Institución Demo")
-                .status(true)
-                .emailVerified(false)
-                .createdAt(LocalDateTime.now())
-                .classroomsCount(0)
-                .studentsCount(0)
-                .build();
+        // Verificar si el email ya está en uso
+        if (!isEmailAvailable(teacherRequest.getEmail())) {
+            throw new IllegalArgumentException("El email ya está en uso");
+        }
+
+        // Obtener la institución
+        Optional<Institution> institutionOpt = institutionRepository.findById(teacherRequest.getInstitutionId());
+        if (institutionOpt.isEmpty()) {
+            throw new IllegalArgumentException("La institución especificada no existe");
+        }
+        Institution institution = institutionOpt.get();
+
+        // Obtener el rol de profesor
+        Optional<Role> roleOpt = roleRepository.findByName(RoleType.TEACHER.getCode());
+        if (roleOpt.isEmpty()) {
+            throw new IllegalArgumentException("El rol de profesor no está configurado en el sistema");
+        }
+        Role role = roleOpt.get();
+
+        // Crear usuario base y perfil de profesor
+        Timestamp now = new Timestamp(System.currentTimeMillis());
+        
+        // Crear el CompleteTeacher
+        CompleteTeacher completeTeacher = new CompleteTeacher(
+            null, // id (se asignará al guardar)
+            role.getId(),
+            institution.getId(),
+            teacherRequest.getFirstName(),
+            teacherRequest.getLastName(),
+            teacherRequest.getEmail(),
+            passwordEncoder.encode(teacherRequest.getPassword()),
+            null, // profilePictureUrl
+            now, // createdAt
+            now, // updatedAt
+            true, // status
+            false, // emailVerified
+            null, // emailVerificationToken
+            null, // emailVerificationExpiresAt
+            null, // passwordResetToken
+            null, // passwordResetExpiresAt
+            null, // lastLoginAt
+            null, // lastLoginIp
+            null, // failedLoginAttempts
+            null, // accountLockedUntil
+            null, // teacherProfileId (se asignará al guardar)
+            null, // teacherUserId (se asignará al guardar)
+            null, // classroomId (se asignará al guardar)
+            teacherRequest.getStemAreaId(),
+            now, // teacherCreatedAt
+            now, // teacherUpdatedAt
+            role, // Role
+            institution // Institution
+        );
+        
+        // Guardar el profesor completo
+        Result<CompleteTeacher> result = completeUserRepository.createCompleteTeacher(completeTeacher);
+        
+        if (!result.isSuccess()) {
+            throw new RuntimeException("Error al registrar el profesor: " + result.getErrorMessage());
+        }
+
+        CompleteTeacher savedTeacher = result.getData();
+
+        // Mapear a DTO de respuesta
+        return mapToTeacherResponseDto(savedTeacher);
     }
     
     @Override
@@ -172,43 +270,96 @@ public class UserRegistrationServiceImpl implements UserRegistrationService {
     }
     
     @Override
+    public User findUserById(Long id) {
+        return userRepository.findById(id).orElseThrow(() -> 
+            new IllegalArgumentException("Usuario no encontrado con ID: " + id)
+        );
+    }
+    
+    @Override
     public UserResponseDto.StudentResponseDto mapToStudentResponseDto(CompleteStudent completeStudent) {
-        // Implementación temporal para pruebas
+        User user = completeStudent.getUser();
+        StudentProfile studentProfile = completeStudent.getStudentProfile();
+        
+        String institutionName = "Institución no encontrada";
+        if (user.getInstitution() != null) {
+            institutionName = user.getInstitution().getName();
+        } else if (user.getInstitutionId() != null) {
+            // Si la institución no está cargada en el usuario, buscarla
+            Optional<Institution> institutionOpt = institutionRepository.findById(user.getInstitutionId());
+            if (institutionOpt.isPresent()) {
+                institutionName = institutionOpt.get().getName();
+            }
+        }
+        
         return UserResponseDto.StudentResponseDto.builder()
-                .id(1L)
-                .firstName("Estudiante")
-                .lastName("Demo")
-                .fullName("Estudiante Demo")
-                .email("estudiante@demo.com")
-                .studentProfileId(1L)
-                .username("estudiante_demo")
-                .pointsAmount(0)
-                .roleName(RoleType.STUDENT.getCode())
-                .institutionName("Institución Demo")
-                .status(true)
-                .emailVerified(false)
-                .createdAt(LocalDateTime.now())
+                // Información básica del usuario
+                .id(user.getId())
+                .firstName(user.getFirstName())
+                .lastName(user.getLastName())
+                .fullName(user.getFirstName() + " " + user.getLastName())
+                .email(user.getEmail())
+                .profilePictureUrl(user.getProfilePictureUrl())
+        
+                // Información específica del estudiante
+                .username(studentProfile.getUsername())
+                .birth_date(studentProfile.getBirthDate())
+                .pointsAmount(0) //Aqui seria 0, se debe implementar en el constructor de CompleteStudent
+        
+                // Información de institución y rol
+                .roleName(user.getRoleName())
+                .institutionName(institutionName)
+        
+                // Estado de la cuenta
+                .status(user.getStatus())
+                .emailVerified(user.isEmailVerified())
+                .createdAt(user.getCreatedAt() != null ? 
+                           user.getCreatedAt().toLocalDateTime() : LocalDateTime.now())
                 .recentAchievements(new ArrayList<>())
                 .build();
     }
     
     @Override
     public UserResponseDto.TeacherResponseDto mapToTeacherResponseDto(CompleteTeacher completeTeacher) {
-        // Implementación temporal para pruebas
+        User user = completeTeacher.getUser();
+        TeacherProfile teacherProfile = completeTeacher.getTeacherProfile();
+
+        String institutionName = "Institución no encontrada";
+        if (user.getInstitution() != null) {
+            institutionName = user.getInstitution().getName();
+        } else if (user.getInstitutionId() != null) {
+            // Si la institución no está cargada en el usuario, buscarla
+            Optional<Institution> institutionOpt = institutionRepository.findById(user.getInstitutionId());
+            if (institutionOpt.isPresent()) {
+                institutionName = institutionOpt.get().getName();
+            }
+        }
+
         return UserResponseDto.TeacherResponseDto.builder()
-                .id(1L)
-                .firstName("Profesor")
-                .lastName("Demo")
-                .fullName("Profesor Demo")
-                .email("profesor@demo.com")
-                .teacherProfileId(1L)
-                .stemAreaId((byte) 1)
-                .stemAreaName("Área STEM Demo")
-                .roleName(RoleType.TEACHER.getCode())
-                .institutionName("Institución Demo")
-                .status(true)
-                .emailVerified(false)
-                .createdAt(LocalDateTime.now())
+                // Información básica del usuario
+                .id(user.getId())
+                .firstName(user.getFirstName())
+                .lastName(user.getLastName())
+                .fullName(user.getFirstName() + " " + user.getLastName())
+                .email(user.getEmail())
+                .profilePictureUrl(user.getProfilePictureUrl())
+        
+                // Información específica del profesor
+                .teacherProfileId(teacherProfile.getId())
+                .stemAreaId(teacherProfile.getStemAreaId())
+                .stemAreaName("STEM Area")//No implementado, se necesita crear un endpoint para obtener el nombre de la área STEM y un repositorio para la tabla de áreas STEM
+        
+                // Información de institución y rol
+                .roleName(user.getRoleName())
+                .institutionName(institutionName)
+        
+                // Estado de la cuenta
+                .status(user.getStatus())
+                .emailVerified(user.isEmailVerified())
+                .createdAt(user.getCreatedAt() != null ? 
+                           user.getCreatedAt().toLocalDateTime() : LocalDateTime.now())
+                
+                // Implementación temporal para pruebas
                 .classroomsCount(0)
                 .studentsCount(0)
                 .build();
@@ -231,14 +382,19 @@ public class UserRegistrationServiceImpl implements UserRegistrationService {
         }
         
         return UserResponseDto.GuardianResponseDto.builder()
+                // Información básica del usuario
                 .id(user.getId())
                 .firstName(user.getFirstName())
                 .lastName(user.getLastName())
                 .fullName(user.getFirstName() + " " + user.getLastName())
                 .email(user.getEmail())
                 .profilePictureUrl(user.getProfilePictureUrl())
+        
+                // Información específica del tutor
                 .guardianProfileId(guardianProfile.getId())
                 .phone(guardianProfile.getPhone())
+        
+                // Información de institución y rol
                 .roleName(user.getRoleName())
                 .institutionName(institutionName)
                 .status(user.getStatus())
@@ -246,8 +402,10 @@ public class UserRegistrationServiceImpl implements UserRegistrationService {
                 .lastLoginAt(null) // Usuario nuevo, no tiene último login
                 .createdAt(user.getCreatedAt() != null ? 
                            user.getCreatedAt().toLocalDateTime() : LocalDateTime.now())
+
+                // Información de estudiantes asociados
                 .studentsCount(0)
                 .students(new ArrayList<>())
                 .build();
     }
-} 
+}

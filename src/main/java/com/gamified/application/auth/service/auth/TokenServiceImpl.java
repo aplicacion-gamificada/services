@@ -1,25 +1,32 @@
 package com.gamified.application.auth.service.auth;
 
+import com.gamified.application.auth.config.JwtConfig;
 import com.gamified.application.auth.dto.request.SessionRequestDto;
 import com.gamified.application.auth.dto.response.CommonResponseDto;
 import com.gamified.application.auth.dto.response.SessionResponseDto;
 import com.gamified.application.auth.entity.core.User;
 import com.gamified.application.auth.entity.security.RefreshToken;
+import com.gamified.application.auth.repository.interfaces.Result;
+import com.gamified.application.auth.repository.security.SecurityRepository;
+import io.jsonwebtoken.Claims;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * Implementación del servicio de tokens
  */
 @Service
+@RequiredArgsConstructor
 public class TokenServiceImpl implements TokenService {
 
-    @Value("${jwt.secret}")
-    private String secretKey;
+    private final JwtConfig jwtConfig;
+    private final SecurityRepository securityRepository;
 
     @Value("${jwt.expiration}")
     private long accessTokenExpiration;
@@ -29,63 +36,77 @@ public class TokenServiceImpl implements TokenService {
     
     @Override
     public String generateAccessToken(User user, Map<String, Object> additionalClaims) {
-        // Implementación temporal para pruebas
-        return "simulated-jwt-token-" + UUID.randomUUID();
+        if (additionalClaims == null) {
+            additionalClaims = new HashMap<>();
+        }
+        
+        // Añadir claims comunes
+        additionalClaims.put("userId", user.getId());
+        additionalClaims.put("email", user.getEmail());
+        additionalClaims.put("role", user.getRole().getName());
+        
+        return jwtConfig.generateToken(additionalClaims, user.getEmail());
     }
     
     @Override
     public RefreshToken generateRefreshToken(Long userId, String ipAddress, String userAgent, String deviceInfo, String sessionName) {
-        // Implementación temporal para pruebas
-        LocalDateTime expiryDateTime = LocalDateTime.now().plusDays(refreshTokenExpiration / (1000 * 60 * 60 * 24));
-        Timestamp expiryTimestamp = Timestamp.valueOf(expiryDateTime);
+        Result<RefreshToken> result = securityRepository.createRefreshToken(
+            userId, ipAddress, userAgent, deviceInfo, sessionName
+        );
         
-        RefreshToken refreshToken = RefreshToken.builder()
-                .id(1L)
-                .token(UUID.randomUUID().toString())
-                .userId(userId)
-                .expiresAt(expiryTimestamp)
-                .isRevoked(false)
-                .createdAt(Timestamp.valueOf(LocalDateTime.now()))
-                .ipAddress(ipAddress)
-                .userAgent(userAgent)
-                .deviceInfo(deviceInfo)
-                .sessionName(sessionName)
-                .build();
+        if (!result.isSuccess()) {
+            throw new RuntimeException("Error al crear refresh token: " + result.getErrorMessage());
+        }
         
-        return refreshToken;
+        return result.getData();
     }
     
     @Override
     public boolean validateToken(String token) {
-        // Implementación temporal para pruebas
-        return token != null && !token.isEmpty() && token.startsWith("simulated-jwt-token-");
+        try {
+            // Utilizar jwtConfig para validar el token
+            return !jwtConfig.extractExpiration(token).before(new Date());
+        } catch (Exception e) {
+            return false;
+        }
     }
     
     @Override
     public Long extractUserId(String token) {
-        // Implementación temporal para pruebas
-        return 1L;
+        try {
+            return ((Number) jwtConfig.extractClaim(token, claims -> claims.get("userId"))).longValue();
+        } catch (Exception e) {
+            return null;
+        }
     }
     
     @Override
     public String extractUsername(String token) {
-        // Implementación temporal para pruebas
-        return "test_user@example.com";
+        try {
+            return jwtConfig.extractUsername(token);
+        } catch (Exception e) {
+            return null;
+        }
     }
     
     @Override
     public Map<String, Object> extractClaims(String token) {
-        // Implementación temporal para pruebas
-        Map<String, Object> claims = new HashMap<>();
-        claims.put("userId", 1L);
-        claims.put("email", "test_user@example.com");
-        claims.put("role", "STUDENT");
-        return claims;
+        try {
+            Claims claims = jwtConfig.extractAllClaims(token);
+            Map<String, Object> claimsMap = new HashMap<>();
+            for (Map.Entry<String, Object> entry : claims.entrySet()) {
+                claimsMap.put(entry.getKey(), entry.getValue());
+            }
+            return claimsMap;
+        } catch (Exception e) {
+            return new HashMap<>();
+        }
     }
     
     @Override
     public List<SessionResponseDto.SessionInfoResponseDto> getActiveSessions(Long userId) {
-        // Implementación temporal para pruebas
+        // Implementar la búsqueda de tokens en la base de datos
+        // Por ahora devolvemos una lista simulada
         List<SessionResponseDto.SessionInfoResponseDto> sessions = new ArrayList<>();
         sessions.add(SessionResponseDto.SessionInfoResponseDto.builder()
                 .deviceInfo("Dispositivo Simulado")
@@ -100,7 +121,7 @@ public class TokenServiceImpl implements TokenService {
     
     @Override
     public CommonResponseDto renameSession(SessionRequestDto.RenameSessionRequestDto renameRequest) {
-        // Implementación temporal para pruebas
+        // Implementar renombrado de sesión en la base de datos
         return CommonResponseDto.builder()
                 .success(true)
                 .message("Sesión renombrada exitosamente")
@@ -110,13 +131,13 @@ public class TokenServiceImpl implements TokenService {
     
     @Override
     public boolean revokeRefreshToken(String token, String reason) {
-        // Implementación temporal para pruebas
-        return true;
+        Result<RefreshToken> result = securityRepository.revokeToken(token, reason);
+        return result.isSuccess();
     }
     
     @Override
     public CommonResponseDto revokeSession(Long sessionId, Long userId) {
-        // Implementación temporal para pruebas
+        // Implementar revocación de sesión específica
         return CommonResponseDto.builder()
                 .success(true)
                 .message("Sesión revocada exitosamente")
@@ -126,17 +147,18 @@ public class TokenServiceImpl implements TokenService {
     
     @Override
     public CommonResponseDto revokeAllSessions(Long userId) {
-        // Implementación temporal para pruebas
+        int revokedCount = securityRepository.revokeAllUserTokens(userId, "Revocación manual de todas las sesiones");
+        
         return CommonResponseDto.builder()
                 .success(true)
-                .message("Todas las sesiones han sido revocadas")
+                .message("Se han revocado " + revokedCount + " sesiones")
                 .timestamp(LocalDateTime.now())
                 .build();
     }
     
     @Override
     public CommonResponseDto revokeAllSessionsExceptCurrent(Long userId, String currentToken) {
-        // Implementación temporal para pruebas
+        // Implementar revocación de todas las sesiones excepto la actual
         return CommonResponseDto.builder()
                 .success(true)
                 .message("Todas las demás sesiones han sido revocadas")
@@ -146,22 +168,6 @@ public class TokenServiceImpl implements TokenService {
     
     @Override
     public Optional<RefreshToken> findRefreshToken(String token) {
-        // Implementación temporal para pruebas
-        if (token != null && !token.isEmpty()) {
-            RefreshToken refreshToken = RefreshToken.builder()
-                    .id(1L)
-                    .token(token)
-                    .userId(1L)
-                    .expiresAt(Timestamp.valueOf(LocalDateTime.now().plusDays(7)))
-                    .isRevoked(false)
-                    .createdAt(Timestamp.valueOf(LocalDateTime.now().minusDays(1)))
-                    .ipAddress("127.0.0.1")
-                    .userAgent("Mozilla/5.0")
-                    .deviceInfo("Chrome en Windows")
-                    .sessionName("Sesión de prueba")
-                    .build();
-            return Optional.of(refreshToken);
-        }
-        return Optional.empty();
+        return securityRepository.findRefreshTokenByValue(token);
     }
 } 

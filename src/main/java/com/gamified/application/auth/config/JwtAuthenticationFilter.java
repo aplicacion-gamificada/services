@@ -34,6 +34,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         // If no auth header or doesn't start with Bearer, continue chain
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            if (!isPublicEndpoint(request.getRequestURI())) {
+                // Solo registra cuando no es un endpoint público
+                logger.debug("No Authorization header found or invalid format for path: " + request.getRequestURI());
+            }
             filterChain.doFilter(request, response);
             return;
         }
@@ -65,14 +69,26 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     
                     // Set authentication in context
                     SecurityContextHolder.getContext().setAuthentication(authToken);
+                    logger.debug("User authenticated: " + username);
+                } else {
+                    logger.debug("Invalid JWT token for user: " + username);
                 }
             }
         } catch (Exception ex) {
             // Just continue without setting authentication on errors
-            logger.error("JWT Authentication error", ex);
+            logger.error("JWT Authentication error for path: " + request.getRequestURI(), ex);
         }
         
         // Continue filter chain
         filterChain.doFilter(request, response);
+    }
+    
+    private boolean isPublicEndpoint(String requestURI) {
+        // Quita el prefijo /api porque ya está incluido en el context-path
+        return requestURI.startsWith("/auth/") || 
+               requestURI.startsWith("/register/") ||
+               requestURI.startsWith("/institutions") ||
+               requestURI.startsWith("/api-docs/") ||
+               requestURI.startsWith("/swagger-ui/");
     }
 } 

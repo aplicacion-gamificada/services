@@ -6,6 +6,7 @@ import com.gamified.application.auth.dto.response.UserResponseDto;
 import com.gamified.application.auth.entity.composite.CompleteStudent;
 import com.gamified.application.auth.entity.composite.CompleteTeacher;
 import com.gamified.application.auth.entity.composite.CompleteGuardian;
+import com.gamified.application.auth.entity.core.User;
 
 /**
  * Servicio para el registro y creación de usuarios
@@ -53,6 +54,13 @@ public interface UserRegistrationService {
      * @return true si está disponible
      */
     boolean isUsernameAvailable(String username);
+    
+    /**
+     * Busca un usuario por su ID
+     * @param id ID del usuario
+     * @return Usuario encontrado o null si no existe
+     */
+    User findUserById(Long id);
     
     /**
      * Convierte una entidad de usuario completo en DTO de respuesta

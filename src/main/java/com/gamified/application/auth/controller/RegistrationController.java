@@ -1,13 +1,21 @@
 package com.gamified.application.auth.controller;
 
 import com.gamified.application.auth.dto.request.UserRequestDto;
+import com.gamified.application.auth.dto.response.AuthResponseDto;
 import com.gamified.application.auth.dto.response.UserResponseDto;
+import com.gamified.application.auth.entity.core.User;
+import com.gamified.application.auth.entity.security.RefreshToken;
+import com.gamified.application.auth.service.auth.TokenService;
 import com.gamified.application.auth.service.user.UserRegistrationService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Controlador para operaciones de registro de usuarios
@@ -18,6 +26,7 @@ import org.springframework.web.bind.annotation.*;
 public class RegistrationController {
 
     private final UserRegistrationService userRegistrationService;
+    private final TokenService tokenService;
 
     /**
      * Endpoint para verificar disponibilidad de email
@@ -77,15 +86,93 @@ public class RegistrationController {
      * Endpoint para registrar un nuevo tutor
      * @param guardianRequest Datos del tutor
      * @param request Request HTTP para obtener información del cliente
-     * @return Perfil del tutor creado
+     * @return Perfil del tutor creado con token de autenticación
      */
     @PostMapping("/guardians")
-    public ResponseEntity<UserResponseDto.GuardianResponseDto> registerGuardian(
+    public ResponseEntity<AuthResponseDto.LoginResponseDto> registerGuardian(
             @Valid @RequestBody UserRequestDto.GuardianRegistrationRequestDto guardianRequest,
             HttpServletRequest request) {
         
         // Procesar registro de tutor
-        UserResponseDto.GuardianResponseDto response = userRegistrationService.registerGuardian(guardianRequest);
+        UserResponseDto.GuardianResponseDto guardianResponse = userRegistrationService.registerGuardian(guardianRequest);
+        
+        // Generar token para el usuario recién registrado
+        User user = userRegistrationService.findUserById(guardianResponse.getId());
+        
+        // Generar claims adicionales
+        Map<String, Object> claims = new HashMap<>();
+        claims.put("guardianProfileId", guardianResponse.getGuardianProfileId());
+        
+        // Generar token de acceso
+        String accessToken = tokenService.generateAccessToken(user, claims);
+        
+        // Generar refresh token
+        String ipAddress = request.getRemoteAddr();
+        String userAgent = request.getHeader("User-Agent");
+        String deviceInfo = extractDeviceInfo(userAgent);
+        
+        RefreshToken refreshToken = tokenService.generateRefreshToken(
+                user.getId(), 
+                ipAddress, 
+                userAgent, 
+                deviceInfo, 
+                "Sesión inicial " + deviceInfo
+        );
+        
+        // Crear respuesta con tokens
+        AuthResponseDto.LoginResponseDto response = AuthResponseDto.LoginResponseDto.builder()
+                .accessToken(accessToken)
+                .refreshToken(refreshToken.getToken())
+                .tokenType("Bearer")
+                .expiresIn(3600L) // 1 hora
+                .userInfo(
+                        UserResponseDto.UserInfoDto.builder()
+                                .id(user.getId())
+                                .email(user.getEmail())
+                                .firstName(user.getFirstName())
+                                .lastName(user.getLastName())
+                                .fullName(user.getFirstName() + " " + user.getLastName())
+                                .role(AuthResponseDto.RoleInfoDto.builder()
+                                        .name(user.getRole().getName())
+                                        .code(user.getRoleName())
+                                        .build())
+                                .emailVerified(user.isEmailVerified())
+                                .accountActive(user.isActive())
+                                .build()
+                )
+                .loginTime(LocalDateTime.now())
+                .sessionId(refreshToken.getId().toString())
+                .rememberMe(false)
+                .build();
+        
         return ResponseEntity.ok(response);
+    }
+    
+    /**
+     * Extrae información básica del dispositivo desde el User-Agent
+     * @param userAgent Cadena User-Agent
+     * @return Información del dispositivo
+     */
+    private String extractDeviceInfo(String userAgent) {
+        if (userAgent == null) {
+            return "Unknown";
+        }
+        
+        // Extraer información básica para identificar el dispositivo
+        String deviceInfo = "Unknown";
+        
+        if (userAgent.contains("Windows")) {
+            deviceInfo = "Windows";
+        } else if (userAgent.contains("Mac")) {
+            deviceInfo = "Mac";
+        } else if (userAgent.contains("iPhone") || userAgent.contains("iPad")) {
+            deviceInfo = "iOS";
+        } else if (userAgent.contains("Android")) {
+            deviceInfo = "Android";
+        } else if (userAgent.contains("Linux")) {
+            deviceInfo = "Linux";
+        }
+        
+        return deviceInfo;
     }
 } 

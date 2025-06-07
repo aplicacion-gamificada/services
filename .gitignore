@@ -41,3 +41,4 @@ build/
 src/main/java/com/gamified/application/auth/db-numerino.sql
 *.bat
 *.sh
+src/main/resources/application.properties

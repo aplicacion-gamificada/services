@@ -39,7 +39,8 @@ public class CompleteStudent {
         this.studentProfile.setGuardianProfileId(guardianProfileId);
         this.studentProfile.setUsername(username);
         this.studentProfile.setBirthDate(birth_date);
-        this.studentProfile.setPointsAmount(pointsAmount);
+        // Al crear un usuario, se crea un estudiante con 0 puntos si no se proporciona un valor
+        this.studentProfile.setPointsAmount(0);
         this.studentProfile.setCreatedAt(studentCreatedAt);
         this.studentProfile.setUpdatedAt(studentUpdatedAt);
         

@@ -33,21 +33,33 @@ public class UserController {
      */
     @GetMapping("/profile")
     public ResponseEntity<?> getCurrentUserProfile(Authentication authentication) {
-        Long userId = getUserIdFromAuthentication(authentication);
-        String userRole = authentication.getAuthorities().iterator().next().getAuthority();
-        
-        if (userRole.equals("ROLE_STUDENT")) {
-            UserResponseDto.StudentResponseDto profile = userProfileService.getStudentProfile(userId);
-            return ResponseEntity.ok(profile);
-        } else if (userRole.equals("ROLE_TEACHER")) {
-            UserResponseDto.TeacherResponseDto profile = userProfileService.getTeacherProfile(userId);
-            return ResponseEntity.ok(profile);
-        } else if (userRole.equals("ROLE_GUARDIAN")) {
-            UserResponseDto.GuardianResponseDto profile = userProfileService.getGuardianProfile(userId);
-            return ResponseEntity.ok(profile);
-        } else {
-            return ResponseEntity.badRequest().body(
-                    new CommonResponseDto(false, "Rol de usuario no válido", null)
+        try {
+            if (authentication == null || !authentication.isAuthenticated()) {
+                return ResponseEntity.status(401).body(
+                        new CommonResponseDto(false, "Usuario no autenticado", null)
+                );
+            }
+            
+            Long userId = getUserIdFromAuthentication(authentication);
+            String userRole = authentication.getAuthorities().iterator().next().getAuthority();
+            
+            if (userRole.equals("ROLE_STUDENT")) {
+                UserResponseDto.StudentResponseDto profile = userProfileService.getStudentProfile(userId);
+                return ResponseEntity.ok(profile);
+            } else if (userRole.equals("ROLE_TEACHER")) {
+                UserResponseDto.TeacherResponseDto profile = userProfileService.getTeacherProfile(userId);
+                return ResponseEntity.ok(profile);
+            } else if (userRole.equals("ROLE_GUARDIAN")) {
+                UserResponseDto.GuardianResponseDto profile = userProfileService.getGuardianProfile(userId);
+                return ResponseEntity.ok(profile);
+            } else {
+                return ResponseEntity.badRequest().body(
+                        new CommonResponseDto(false, "Rol de usuario no válido", null)
+                );
+            }
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(
+                    new CommonResponseDto(false, "Error al obtener el perfil: " + e.getMessage(), null)
             );
         }
     }
@@ -240,8 +252,16 @@ public class UserController {
      * @return ID del usuario
      */
     private Long getUserIdFromAuthentication(Authentication authentication) {
-        // Esto dependerá de cómo se almacene el ID de usuario en el objeto Authentication
-        // Por ahora, asumiremos que es un Long que se puede obtener del principal
-        return Long.valueOf(authentication.getName());
+        // Verificar si la autenticación es null
+        if (authentication == null) {
+            throw new IllegalStateException("Usuario no autenticado");
+        }
+        
+        // Obtener el nombre de usuario (que es el ID del usuario en nuestro caso)
+        try {
+            return Long.valueOf(authentication.getName());
+        } catch (NumberFormatException e) {
+            throw new IllegalStateException("El ID de usuario no es válido: " + authentication.getName());
+        }
     }
 } 

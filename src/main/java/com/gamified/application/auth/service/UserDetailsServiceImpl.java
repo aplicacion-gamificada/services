@@ -31,9 +31,11 @@ public class UserDetailsServiceImpl implements UserDetailsService {
                                   rs.getBoolean("email_verified") && 
                                   rs.getBoolean("status");
                 
-                // Create Spring Security User object with role
+                Long userId = rs.getLong("id");
+                
+                // Crear un objeto UserDetails personalizado que use el ID como nombre de usuario
                 return new User(
-                        rs.getString("username"),
+                        String.valueOf(userId),  // Usar el ID como nombre de usuario para autenticación
                         rs.getString("password"),
                         enabled,
                         true,  // account non-expired
