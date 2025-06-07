@@ -252,4 +252,30 @@ public class AuthRequestDto {
             return newPassword != null && newPassword.equals(confirmNewPassword);
         }
     }
+
+    /**
+     * DTO para solicitudes de login de estudiantes con username
+     */
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    @ToString(exclude = {"password"})
+    public static class StudentLoginRequestDto {
+
+        @NotBlank(message = "El nombre de usuario es obligatorio")
+        @Size(max = 50, message = "El nombre de usuario no puede exceder 50 caracteres")
+        private String username;
+
+        @NotBlank(message = "La contraseña es obligatoria")
+        @Size(min = 8, max = 255, message = "La contraseña debe tener entre 8 y 255 caracteres")
+        private String password;
+
+        @Builder.Default
+        private Boolean rememberMe = false;
+
+        private String deviceInfo;
+        private String userAgent;
+    }
 }

@@ -42,8 +42,14 @@ public class UserRegistrationServiceImpl implements UserRegistrationService {
     
     @Override
     public UserResponseDto.StudentResponseDto registerStudent(UserRequestDto.StudentRegistrationRequestDto studentRequest) {
+        String email = studentRequest.getEmail();
+        
+        // Si el email es nulo o vacío, generar un pseudo-email único
+        if (email == null || email.trim().isEmpty()) {
+            email = "student_" + studentRequest.getUsername() + "_" + System.currentTimeMillis() + "@noemail.internal";
+        }
         // Verificar si el email ya está en uso
-        if (!isEmailAvailable(studentRequest.getEmail())) {
+        else if (!isEmailAvailable(email)) {
             throw new IllegalArgumentException("El email ya está en uso");
         }
 
@@ -71,13 +77,13 @@ public class UserRegistrationServiceImpl implements UserRegistrationService {
             institution.getId(),
             studentRequest.getFirstName(),
             studentRequest.getLastName(),
-            studentRequest.getEmail(),
+            email, // Email real o generado único
             passwordEncoder.encode(studentRequest.getPassword()),
             null, // profilePictureUrl
             now, // createdAt
             now, // updatedAt
             true, // status
-            false, // emailVerified
+            true, // emailVerified: Por pruebas true
             null, // emailVerificationToken
             null, // emailVerificationExpiresAt
             null, // passwordResetToken
@@ -88,12 +94,12 @@ public class UserRegistrationServiceImpl implements UserRegistrationService {
             null, // accountLockedUntil
             null, // studentProfileId (se asignará al guardar)
             null, // studentUserId (se asignará al guardar)
-            null, // guardianProfileId (se asignará al guardar)
+            studentRequest.getGuardianProfileId(), // Aquí asignamos el guardianProfileId que podría ser nulo
             studentRequest.getUsername(),
             studentRequest.getBirth_date(),
-            null, // pointsAmount
-            null, // studentCreatedAt
-            null, // studentUpdatedAt
+            0, // pointsAmount (inicializado en 0)
+            now, // studentCreatedAt
+            now, // studentUpdatedAt
             role, // Role
             institution // Institution
         );
@@ -260,6 +266,13 @@ public class UserRegistrationServiceImpl implements UserRegistrationService {
     
     @Override
     public boolean isEmailAvailable(String email) {
+        // Si el email es nulo o vacío, verificar si ya existe un usuario con email nulo
+        if (email == null || email.trim().isEmpty()) {
+            // Aquí deberíamos verificar si ya existe un usuario con email NULL
+            // Como esto podría requerir un query especial que no está disponible en UserRepository,
+            // lo manejamos como un caso especial generando un email único basado en un timestamp
+            return true;
+        }
         return userRepository.findByEmail(email).isEmpty();
     }
     

@@ -115,8 +115,7 @@ public class UserRequestDto {
         @Pattern(regexp = "^[a-zA-ZáéíóúÁÉÍÓÚñÑ\\s]*$", message = "El apellido solo puede contener letras y espacios")
         private String lastName;
         
-        @Email(message = "El email debe ser válido")
-        @NotBlank(message = "El email es obligatorio")
+        @Email(message = "El email debe ser válido si se proporciona")
         private String email;
         
         @NotBlank(message = "La contraseña es obligatoria")

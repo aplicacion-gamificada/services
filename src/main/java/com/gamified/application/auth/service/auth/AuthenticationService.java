@@ -19,6 +19,13 @@ public interface AuthenticationService {
     AuthResponseDto.LoginResponseDto login(AuthRequestDto.LoginRequestDto authRequest);
     
     /**
+     * Autentica un usuario estudiante con username y contraseña
+     * @param loginRequest Credenciales del estudiante (username y password)
+     * @return Respuesta con tokens y datos básicos del usuario
+     */
+    AuthResponseDto.LoginResponseDto loginStudent(AuthRequestDto.StudentLoginRequestDto loginRequest);
+    
+    /**
      * Registra un nuevo usuario según su rol
      * @param registerRequest Datos del nuevo usuario
      * @return Respuesta con resultado del registro

@@ -197,6 +197,25 @@ public class AuthController {
         CommonResponseDto response = authenticationService.executePasswordReset(resetRequest);
         return ResponseEntity.ok(response);
     }
+
+    /**
+     * Endpoint para iniciar sesión de estudiantes con username
+     * @param loginRequest Datos de inicio de sesión
+     * @param request Request HTTP para obtener información del cliente
+     * @return Token JWT y datos básicos del usuario
+     */
+    @PostMapping("/student-login")
+    public ResponseEntity<AuthResponseDto.LoginResponseDto> studentLogin(
+            @Valid @RequestBody AuthRequestDto.StudentLoginRequestDto loginRequest,
+            HttpServletRequest request) {
+        
+        // Añadir información del cliente al request
+        enrichRequestWithClientInfo(loginRequest, request);
+        
+        // Procesar login
+        AuthResponseDto.LoginResponseDto response = authenticationService.loginStudent(loginRequest);
+        return ResponseEntity.ok(response);
+    }
     
     /**
      * Añade información del cliente a la solicitud

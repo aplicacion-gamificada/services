@@ -370,6 +370,11 @@ public class User {
      * Verifica si el usuario puede realizar login
      */
     public boolean canLogin() {
+        // Para estudiantes, no requerir verificación de email
+        if (isStudent()) {
+            return isActive() && !isAccountLocked();
+        }
+        // Para otros roles, mantener la verificación de email
         return isActive() && isEmailVerified() && !isAccountLocked();
     }
 
@@ -384,12 +389,19 @@ public class User {
      * Valida que el usuario tenga los datos mínimos requeridos
      */
     public boolean isValid() {
-        return firstName != null && !firstName.trim().isEmpty() &&
+        boolean baseValidation = firstName != null && !firstName.trim().isEmpty() &&
                 lastName != null && !lastName.trim().isEmpty() &&
-                email != null && !email.trim().isEmpty() &&
                 password != null && !password.trim().isEmpty() &&
                 roleId != null &&
                 institutionId != null;
+                
+        // Si es estudiante, no requerir email
+        if (isStudent()) {
+            return baseValidation;
+        }
+        
+        // Para otros roles, requerir email
+        return baseValidation && email != null && !email.trim().isEmpty();
     }
 
     /**

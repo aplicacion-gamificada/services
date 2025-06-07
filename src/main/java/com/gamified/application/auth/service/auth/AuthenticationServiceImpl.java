@@ -87,4 +87,17 @@ public class AuthenticationServiceImpl implements AuthenticationService {
                 .timestamp(LocalDateTime.now())
                 .build();
     }
+    
+    @Override
+    public AuthResponseDto.LoginResponseDto loginStudent(AuthRequestDto.StudentLoginRequestDto loginRequest) {
+        // Implementación para autenticar estudiantes por username
+        // Nota: Esta es una implementación temporal que deberá ser reemplazada con la lógica real
+        return AuthResponseDto.LoginResponseDto.builder()
+                .accessToken("token-estudiante-simulado")
+                .refreshToken("refresh-token-estudiante-simulado")
+                .tokenType("Bearer")
+                .expiresIn(3600L)
+                .loginTime(LocalDateTime.now())
+                .build();
+    }
 } 
