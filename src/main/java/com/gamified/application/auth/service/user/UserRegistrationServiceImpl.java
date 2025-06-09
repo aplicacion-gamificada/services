@@ -165,7 +165,7 @@ public class UserRegistrationServiceImpl implements UserRegistrationService {
             null, // accountLockedUntil
             null, // teacherProfileId (se asignará al guardar)
             null, // teacherUserId (se asignará al guardar)
-            null, // classroomId (se asignará al guardar)
+            false, // teacherEmailVerified - inicializado en false
             teacherRequest.getStemAreaId(),
             now, // teacherCreatedAt
             now, // teacherUpdatedAt
