@@ -30,4 +30,15 @@ build/
 !**/src/test/**/build/
 
 ### VS Code ###
-.vscode/
+.vscode
+
+# Ignorar scripts de PowerShell y archivos de texto
+*.ps1
+*.txt
+
+/src/main/java/com/gamified/application/auth/repository
+*.sql
+src/main/java/com/gamified/application/auth/db-numerino.sql
+*.bat
+*.sh
+src/main/resources/application.properties
