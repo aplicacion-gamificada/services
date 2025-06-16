@@ -238,6 +238,30 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * Maneja excepciones de email ya existente
+     * @param ex Excepción de email ya existente
+     * @param request Petición HTTP
+     * @return Respuesta de error
+     */
+    @ExceptionHandler(EmailAlreadyExistsException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public ResponseEntity<ErrorResponseDto> handleEmailAlreadyExistsException(
+            EmailAlreadyExistsException ex, HttpServletRequest request) {
+        
+        log.warn("Email ya existe: {}", ex.getMessage());
+        
+        ErrorResponseDto errorResponse = new ErrorResponseDto(
+                HttpStatus.CONFLICT.value(),
+                "Email ya registrado",
+                ex.getMessage(),
+                request.getRequestURI(),
+                LocalDateTime.now()
+        );
+        
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(errorResponse);
+    }
+
+    /**
      * Maneja excepciones genéricas
      * @param ex Excepción
      * @param request Petición HTTP
@@ -248,12 +272,26 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponseDto> handleGenericException(
             Exception ex, HttpServletRequest request) {
         
-        log.error("Error interno del servidor: {}", ex.getMessage(), ex);
+        // Para errores internos del servidor, solo loguear el mensaje principal y no el stack trace completo
+        // excepto si el nivel de log es DEBUG o inferior
+        if (log.isDebugEnabled()) {
+            log.error("Error interno del servidor: {}", ex.getMessage(), ex);
+        } else {
+            log.error("Error interno del servidor: {}", ex.getMessage());
+        }
+        
+        // Crear una respuesta de error más amigable para el usuario
+        String userMessage = "Ha ocurrido un error en el servidor. Por favor, inténtelo de nuevo más tarde.";
+        
+        // Si es un error conocido, mostrar un mensaje más específico
+        if (ex.getMessage() != null && ex.getMessage().contains("Email already exists")) {
+            userMessage = "El email ya está registrado en el sistema.";
+        }
         
         ErrorResponseDto errorResponse = new ErrorResponseDto(
                 HttpStatus.INTERNAL_SERVER_ERROR.value(),
                 "Error interno del servidor",
-                "Ha ocurrido un error inesperado. Por favor, inténtelo de nuevo más tarde.",
+                userMessage,
                 request.getRequestURI(),
                 LocalDateTime.now()
         );

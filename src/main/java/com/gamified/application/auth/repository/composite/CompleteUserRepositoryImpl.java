@@ -9,9 +9,11 @@ import com.gamified.application.auth.entity.core.User;
 import com.gamified.application.auth.entity.profiles.GuardianProfile;
 import com.gamified.application.auth.entity.profiles.StudentProfile;
 import com.gamified.application.auth.entity.profiles.TeacherProfile;
+import com.gamified.application.auth.repository.core.UserRepository;
 import com.gamified.application.auth.repository.interfaces.Result;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.simple.SimpleJdbcCall;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Repository;
@@ -23,7 +25,9 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.sql.Timestamp;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -33,81 +37,164 @@ import java.util.Optional;
 public class CompleteUserRepositoryImpl implements CompleteUserRepository {
 
     private final JdbcTemplate jdbcTemplate;
+    private final UserRepository userRepository;
 
     @Autowired
-    public CompleteUserRepositoryImpl(JdbcTemplate jdbcTemplate) {
+    public CompleteUserRepositoryImpl(JdbcTemplate jdbcTemplate, UserRepository userRepository) {
         this.jdbcTemplate = jdbcTemplate;
+        this.userRepository = userRepository;
     }
 
     @Override
     @Transactional
     public Result<CompleteStudent> createCompleteStudent(CompleteStudent completeStudent) {
         try {
-            // 0. Obtener el próximo valor de ID de usuario
-            Long nextUserId = jdbcTemplate.queryForObject(
-                "SELECT ISNULL(MAX(id), 0) + 1 FROM [user]", Long.class);
-            
-            // 1. Insertar usuario base
+            // Extraer datos del usuario y perfil de estudiante
             User user = completeStudent.getUser();
-            user.setId(nextUserId); // Establecer el ID generado
-            
-            jdbcTemplate.update(connection -> {
-                PreparedStatement ps = connection.prepareStatement(
-                    "INSERT INTO [user] (id, role_id, institution_id, first_name, last_name, email, password, " +
-                    "profile_picture_url, created_at, updated_at, status, email_verified, username) " +
-                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                    Statement.RETURN_GENERATED_KEYS
-                );
-                ps.setLong(1, nextUserId);
-                ps.setByte(2, user.getRoleId());
-                ps.setLong(3, user.getInstitutionId());
-                ps.setString(4, user.getFirstName());
-                ps.setString(5, user.getLastName());
-                ps.setString(6, user.getEmail());
-                ps.setString(7, user.getPassword());
-                ps.setString(8, user.getProfilePictureUrl());
-                ps.setTimestamp(9, user.getCreatedAt());
-                ps.setTimestamp(10, user.getUpdatedAt());
-                ps.setBoolean(11, user.getStatus());
-                ps.setBoolean(12, user.isEmailVerified());
-                ps.setString(13, completeStudent.getStudentProfile().getUsername()); // Usar el username del perfil de estudiante
-                return ps;
-            });
-            
-            // 2. Insertar perfil de estudiante
             StudentProfile studentProfile = completeStudent.getStudentProfile();
-            studentProfile.setUserId(nextUserId);
             
-            // Obtener el próximo valor de ID para student_profiles
-            Long nextStudentId = jdbcTemplate.queryForObject(
-                "SELECT ISNULL(MAX(id), 0) + 1 FROM student_profile", Long.class);
-            studentProfile.setId(nextStudentId);
+            // Imprimir el roleId para debugging
+            System.out.println("DEBUG - Creating student with roleId: " + user.getRoleId());
             
-            jdbcTemplate.update(connection -> {
-                PreparedStatement ps = connection.prepareStatement(
-                    "INSERT INTO student_profile (id, user_id, guardian_profile_id, username, birth_date, points_amount, " +
-                    "created_at, updated_at) " +
-                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-                    Statement.RETURN_GENERATED_KEYS
-                );
-                ps.setLong(1, nextStudentId);
-                ps.setLong(2, nextUserId);
-                // El guardian_profile_id puede ser null si no tiene guardián asignado
-                if (studentProfile.getGuardianProfileId() != null) {
-                    ps.setLong(3, studentProfile.getGuardianProfileId());
-                } else {
-                    ps.setNull(3, java.sql.Types.BIGINT);
+            // 1. Crear usuario base usando sp_create_user_base existente
+            Map<String, Object> userParams = new HashMap<>();
+            userParams.put("email", user.getEmail());
+            userParams.put("password", user.getPassword());
+            userParams.put("role_id", user.getRoleId());
+            userParams.put("first_name", user.getFirstName());
+            userParams.put("last_name", user.getLastName());
+            userParams.put("institution_id", user.getInstitutionId());
+            
+            // Imprimir los parámetros que se envían al stored procedure
+            System.out.println("DEBUG - User params: " + userParams);
+            
+            SimpleJdbcCall createUserCall = new SimpleJdbcCall(jdbcTemplate)
+                    .withProcedureName("sp_create_user_base")
+                    .returningResultSet("result", (rs, rowNum) -> {
+                        Map<String, Object> resultMap = new HashMap<>();
+                        resultMap.put("success", rs.getInt("success"));
+                        resultMap.put("message", rs.getString("message"));
+                        if (rs.getMetaData().getColumnCount() > 2) {
+                            try {
+                                resultMap.put("user_id", rs.getLong("user_id"));
+                            } catch (SQLException e) {
+                                // La columna user_id podría no existir o ser NULL
+                            }
+                        }
+                        return resultMap;
+                    });
+            
+            Map<String, Object> userResult = createUserCall.execute(userParams);
+            
+            // Imprimir el resultado del stored procedure
+            System.out.println("DEBUG - User creation result: " + userResult);
+            
+            // Verificar si la creación del usuario fue exitosa
+            Long userId = null;
+            
+            if (userResult.containsKey("result")) {
+                @SuppressWarnings("unchecked")
+                List<Map<String, Object>> resultList = (List<Map<String, Object>>) userResult.get("result");
+                if (!resultList.isEmpty()) {
+                    Map<String, Object> result = resultList.get(0);
+                    Integer success = (Integer) result.get("success");
+                    if (success == null || success != 1) {
+                        String errorMessage = (String) result.get("message");
+                        return Result.failure("Error al crear usuario: " + errorMessage);
+                    }
+                    
+                    // Intentar obtener el ID del usuario del resultado
+                    if (result.containsKey("user_id") && result.get("user_id") != null) {
+                        userId = ((Number) result.get("user_id")).longValue();
+                    }
                 }
-                ps.setString(4, studentProfile.getUsername());
-                ps.setDate(5, studentProfile.getBirthDate());
-                ps.setInt(6, studentProfile.getPointsAmount());
-                ps.setTimestamp(7, studentProfile.getCreatedAt());
-                ps.setTimestamp(8, studentProfile.getUpdatedAt());
-                return ps;
-            });
+            } else {
+                // Verificar el resultado directamente
+                Integer success = (Integer) userResult.get("success");
+                if (success == null || success != 1) {
+                    String errorMessage = (String) userResult.get("message");
+                    return Result.failure("Error al crear usuario: " + errorMessage);
+                }
+                
+                // Intentar obtener el ID del usuario del resultado
+                if (userResult.containsKey("user_id") && userResult.get("user_id") != null) {
+                    userId = ((Number) userResult.get("user_id")).longValue();
+                }
+            }
             
+            // Si no se pudo obtener el ID del usuario del stored procedure, buscarlo por email
+            if (userId == null) {
+                Optional<User> createdUserOpt = userRepository.findByEmail(user.getEmail());
+                if (createdUserOpt.isEmpty()) {
+                    return Result.failure("No se pudo encontrar el usuario recién creado");
+                }
+                userId = createdUserOpt.get().getId();
+            }
+            
+            user.setId(userId);
+            
+            // Imprimir el usuario creado para verificar el rol
+            System.out.println("DEBUG - Created user: " + user);
+            System.out.println("DEBUG - Created user ID: " + userId);
+            System.out.println("DEBUG - Created user roleId: " + user.getRoleId());
+            
+            // 3. Crear perfil de estudiante usando sp_create_student_profile existente
+            Map<String, Object> studentParams = new HashMap<>();
+            studentParams.put("user_id", userId);
+            studentParams.put("guardian_profile_id", studentProfile.getGuardianProfileId());
+            studentParams.put("username", studentProfile.getUsername());
+            studentParams.put("birth_date", studentProfile.getBirthDate());
+            studentParams.put("points_amount", studentProfile.getPointsAmount());
+            
+            // Imprimir los parámetros del perfil de estudiante
+            System.out.println("DEBUG - Student params: " + studentParams);
+            
+            SimpleJdbcCall createStudentCall = new SimpleJdbcCall(jdbcTemplate)
+                    .withProcedureName("sp_create_student_profile")
+                    .returningResultSet("result", (rs, rowNum) -> {
+                        Map<String, Object> resultMap = new HashMap<>();
+                        resultMap.put("success", rs.getInt("success"));
+                        resultMap.put("message", rs.getString("message"));
+                        return resultMap;
+                    });
+            
+            Map<String, Object> studentResult = createStudentCall.execute(studentParams);
+            
+            // Imprimir el resultado de la creación del perfil
+            System.out.println("DEBUG - Student profile creation result: " + studentResult);
+            
+            // Verificar si la creación del perfil fue exitosa
+            if (studentResult.containsKey("result")) {
+                @SuppressWarnings("unchecked")
+                List<Map<String, Object>> resultList = (List<Map<String, Object>>) studentResult.get("result");
+                if (!resultList.isEmpty()) {
+                    Map<String, Object> result = resultList.get(0);
+                    Integer success = (Integer) result.get("success");
+                    if (success == null || success != 1) {
+                        String errorMessage = (String) result.get("message");
+                        return Result.failure("Error al crear perfil de estudiante: " + errorMessage);
+                    }
+                }
+            } else {
+                // Verificar el resultado directamente
+                Integer success = (Integer) studentResult.get("success");
+                if (success == null || success != 1) {
+                    String errorMessage = (String) studentResult.get("message");
+                    return Result.failure("Error al crear perfil de estudiante: " + errorMessage);
+                }
+            }
+            
+            // 4. Cargar el perfil completo
+            Optional<CompleteStudent> completeStudentOpt = findCompleteStudentById(userId);
+            if (completeStudentOpt.isPresent()) {
+                return Result.success(completeStudentOpt.get());
+            }
+            
+            // Si no se puede cargar, devolver el objeto original con los IDs actualizados
             return Result.success(completeStudent);
+            
         } catch (Exception e) {
+            e.printStackTrace(); // Imprimir la excepción completa
             return Result.failure("Error al crear estudiante: " + e.getMessage());
         }
     }
@@ -116,61 +203,128 @@ public class CompleteUserRepositoryImpl implements CompleteUserRepository {
     @Transactional
     public Result<CompleteTeacher> createCompleteTeacher(CompleteTeacher completeTeacher) {
         try {
-            // 0. Obtener el próximo valor de ID de usuario
-            Long nextUserId = jdbcTemplate.queryForObject(
-                "SELECT ISNULL(MAX(id), 0) + 1 FROM [user]", Long.class);
-            
-            // 1. Insertar usuario base
+            // Extraer datos del usuario y perfil de profesor
             User user = completeTeacher.getUser();
-            user.setId(nextUserId); // Establecer el ID generado
-            
-            jdbcTemplate.update(connection -> {
-                PreparedStatement ps = connection.prepareStatement(
-                    "INSERT INTO [user] (id, role_id, institution_id, first_name, last_name, email, password, " +
-                    "profile_picture_url, created_at, updated_at, status, email_verified) " +
-                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                    Statement.RETURN_GENERATED_KEYS
-                );
-                ps.setLong(1, nextUserId);
-                ps.setByte(2, user.getRoleId());
-                ps.setLong(3, user.getInstitutionId());
-                ps.setString(4, user.getFirstName());
-                ps.setString(5, user.getLastName());
-                ps.setString(6, user.getEmail());
-                ps.setString(7, user.getPassword());
-                ps.setString(8, user.getProfilePictureUrl());
-                ps.setTimestamp(9, user.getCreatedAt());
-                ps.setTimestamp(10, user.getUpdatedAt());
-                ps.setBoolean(11, user.getStatus());
-                ps.setBoolean(12, user.isEmailVerified());
-                return ps;
-            });
-            
-            // 2. Insertar perfil de profesor
             TeacherProfile teacherProfile = completeTeacher.getTeacherProfile();
-            teacherProfile.setUserId(nextUserId);
             
-            // Obtener el próximo valor de ID para teacher_profile
-            Long nextTeacherId = jdbcTemplate.queryForObject(
-                "SELECT ISNULL(MAX(id), 0) + 1 FROM teacher_profile", Long.class);
-            teacherProfile.setId(nextTeacherId);
+            // 1. Crear usuario base usando sp_create_user_base existente
+            Map<String, Object> userParams = new HashMap<>();
+            userParams.put("email", user.getEmail());
+            userParams.put("password", user.getPassword());
+            userParams.put("role_id", user.getRoleId());
+            userParams.put("first_name", user.getFirstName());
+            userParams.put("last_name", user.getLastName());
+            userParams.put("institution_id", user.getInstitutionId());
             
-            jdbcTemplate.update(connection -> {
-                PreparedStatement ps = connection.prepareStatement(
-                    "INSERT INTO teacher_profile (id, user_id, email_verified, stem_area_id, created_at, updated_at) " +
-                    "VALUES (?, ?, ?, ?, ?, ?)",
-                    Statement.RETURN_GENERATED_KEYS
-                );
-                ps.setLong(1, nextTeacherId);
-                ps.setLong(2, nextUserId);
-                ps.setBoolean(3, teacherProfile.getEmailVerified());
-                ps.setByte(4, teacherProfile.getStemAreaId());
-                ps.setTimestamp(5, teacherProfile.getCreatedAt());
-                ps.setTimestamp(6, teacherProfile.getUpdatedAt());
-                return ps;
-            });
+            SimpleJdbcCall createUserCall = new SimpleJdbcCall(jdbcTemplate)
+                    .withProcedureName("sp_create_user_base")
+                    .returningResultSet("result", (rs, rowNum) -> {
+                        Map<String, Object> resultMap = new HashMap<>();
+                        resultMap.put("success", rs.getInt("success"));
+                        resultMap.put("message", rs.getString("message"));
+                        if (rs.getMetaData().getColumnCount() > 2) {
+                            try {
+                                resultMap.put("user_id", rs.getLong("user_id"));
+                            } catch (SQLException e) {
+                                // La columna user_id podría no existir o ser NULL
+                            }
+                        }
+                        return resultMap;
+                    });
             
+            Map<String, Object> userResult = createUserCall.execute(userParams);
+            
+            // Verificar si la creación del usuario fue exitosa
+            Long userId = null;
+            
+            if (userResult.containsKey("result")) {
+                @SuppressWarnings("unchecked")
+                List<Map<String, Object>> resultList = (List<Map<String, Object>>) userResult.get("result");
+                if (!resultList.isEmpty()) {
+                    Map<String, Object> result = resultList.get(0);
+                    Integer success = (Integer) result.get("success");
+                    if (success == null || success != 1) {
+                        String errorMessage = (String) result.get("message");
+                        return Result.failure("Error al crear usuario: " + errorMessage);
+                    }
+                    
+                    // Intentar obtener el ID del usuario del resultado
+                    if (result.containsKey("user_id") && result.get("user_id") != null) {
+                        userId = ((Number) result.get("user_id")).longValue();
+                    }
+                }
+            } else {
+                // Verificar el resultado directamente
+                Integer success = (Integer) userResult.get("success");
+                if (success == null || success != 1) {
+                    String errorMessage = (String) userResult.get("message");
+                    return Result.failure("Error al crear usuario: " + errorMessage);
+                }
+                
+                // Intentar obtener el ID del usuario del resultado
+                if (userResult.containsKey("user_id") && userResult.get("user_id") != null) {
+                    userId = ((Number) userResult.get("user_id")).longValue();
+                }
+            }
+            
+            // Si no se pudo obtener el ID del usuario del stored procedure, buscarlo por email
+            if (userId == null) {
+                Optional<User> createdUserOpt = userRepository.findByEmail(user.getEmail());
+                if (createdUserOpt.isEmpty()) {
+                    return Result.failure("No se pudo encontrar el usuario recién creado");
+                }
+                userId = createdUserOpt.get().getId();
+            }
+            
+            user.setId(userId);
+            
+            // 3. Crear perfil de profesor usando sp_create_teacher_profile existente
+            Map<String, Object> teacherParams = new HashMap<>();
+            teacherParams.put("user_id", userId);
+            teacherParams.put("email_verified", teacherProfile.getEmailVerified());
+            teacherParams.put("stem_area_id", teacherProfile.getStemAreaId());
+            
+            SimpleJdbcCall createTeacherCall = new SimpleJdbcCall(jdbcTemplate)
+                    .withProcedureName("sp_create_teacher_profile")
+                    .returningResultSet("result", (rs, rowNum) -> {
+                        Map<String, Object> resultMap = new HashMap<>();
+                        resultMap.put("success", rs.getInt("success"));
+                        resultMap.put("message", rs.getString("message"));
+                        return resultMap;
+                    });
+            
+            Map<String, Object> teacherResult = createTeacherCall.execute(teacherParams);
+            
+            // Verificar si la creación del perfil fue exitosa
+            if (teacherResult.containsKey("result")) {
+                @SuppressWarnings("unchecked")
+                List<Map<String, Object>> resultList = (List<Map<String, Object>>) teacherResult.get("result");
+                if (!resultList.isEmpty()) {
+                    Map<String, Object> result = resultList.get(0);
+                    Integer success = (Integer) result.get("success");
+                    if (success == null || success != 1) {
+                        String errorMessage = (String) result.get("message");
+                        return Result.failure("Error al crear perfil de profesor: " + errorMessage);
+                    }
+                }
+            } else {
+                // Verificar el resultado directamente
+                Integer success = (Integer) teacherResult.get("success");
+                if (success == null || success != 1) {
+                    String errorMessage = (String) teacherResult.get("message");
+                    return Result.failure("Error al crear perfil de profesor: " + errorMessage);
+                }
+            }
+            
+            // 4. Cargar el perfil completo
+            Optional<CompleteTeacher> completeTeacherOpt = findCompleteTeacherById(userId);
+            if (completeTeacherOpt.isPresent()) {
+                return Result.success(completeTeacherOpt.get());
+            }
+            
+            // Si no se puede cargar, devolver el objeto original con los IDs actualizados
             return Result.success(completeTeacher);
+            
         } catch (Exception e) {
             return Result.failure("Error al crear profesor: " + e.getMessage());
         }
@@ -180,61 +334,186 @@ public class CompleteUserRepositoryImpl implements CompleteUserRepository {
     @Transactional
     public Result<CompleteGuardian> createCompleteGuardian(CompleteGuardian completeGuardian) {
         try {
-            // 0. Obtener el próximo valor de ID de usuario
-            Long nextUserId = jdbcTemplate.queryForObject(
-                "SELECT ISNULL(MAX(id), 0) + 1 FROM [user]", Long.class);
-            
-            // 1. Insertar usuario base
+            // Extraer datos del usuario y perfil de tutor
             User user = completeGuardian.getUser();
-            user.setId(nextUserId); // Establecer el ID generado
-            
-            jdbcTemplate.update(connection -> {
-                PreparedStatement ps = connection.prepareStatement(
-                    "INSERT INTO [user] (id, role_id, institution_id, first_name, last_name, email, password, " +
-                    "profile_picture_url, created_at, updated_at, status, email_verified) " +
-                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                    Statement.RETURN_GENERATED_KEYS
-                );
-                ps.setLong(1, nextUserId);
-                ps.setByte(2, user.getRoleId());
-                ps.setLong(3, user.getInstitutionId());
-                ps.setString(4, user.getFirstName());
-                ps.setString(5, user.getLastName());
-                ps.setString(6, user.getEmail());
-                ps.setString(7, user.getPassword());
-                ps.setString(8, user.getProfilePictureUrl());
-                ps.setTimestamp(9, user.getCreatedAt());
-                ps.setTimestamp(10, user.getUpdatedAt());
-                ps.setBoolean(11, user.getStatus());
-                ps.setBoolean(12, user.isEmailVerified());
-                return ps;
-            });
-            
-            // 2. Insertar perfil de guardián
             GuardianProfile guardianProfile = completeGuardian.getGuardianProfile();
-            guardianProfile.setUserId(nextUserId);
             
-            // Obtener el próximo valor de ID para guardian_profile
-            Long nextGuardianId = jdbcTemplate.queryForObject(
-                "SELECT ISNULL(MAX(id), 0) + 1 FROM guardian_profile", Long.class);
-            guardianProfile.setId(nextGuardianId);
+            // Imprimir el roleId para debugging
+            System.out.println("DEBUG - Creating guardian with roleId: " + user.getRoleId());
             
-            jdbcTemplate.update(connection -> {
-                PreparedStatement ps = connection.prepareStatement(
-                    "INSERT INTO guardian_profile (id, user_id, phone, created_at, updated_at) " +
-                    "VALUES (?, ?, ?, ?, ?)",
-                    Statement.RETURN_GENERATED_KEYS
-                );
-                ps.setLong(1, nextGuardianId);
-                ps.setLong(2, nextUserId);
-                ps.setString(3, guardianProfile.getPhone());
-                ps.setTimestamp(4, guardianProfile.getCreatedAt());
-                ps.setTimestamp(5, guardianProfile.getUpdatedAt());
-                return ps;
-            });
+            // 1. Crear usuario base usando sp_create_user_base existente
+            Map<String, Object> userParams = new HashMap<>();
+            userParams.put("email", user.getEmail());
+            userParams.put("password", user.getPassword());
+            userParams.put("role_id", user.getRoleId());
+            userParams.put("first_name", user.getFirstName());
+            userParams.put("last_name", user.getLastName());
+            userParams.put("institution_id", user.getInstitutionId());
+            
+            // Imprimir los parámetros que se envían al stored procedure
+            System.out.println("DEBUG - User params: " + userParams);
+            
+            SimpleJdbcCall createUserCall = new SimpleJdbcCall(jdbcTemplate)
+                    .withProcedureName("sp_create_user_base")
+                    .returningResultSet("result", (rs, rowNum) -> {
+                        Map<String, Object> resultMap = new HashMap<>();
+                        resultMap.put("success", rs.getInt("success"));
+                        resultMap.put("message", rs.getString("message"));
+                        if (rs.getMetaData().getColumnCount() > 2) {
+                            try {
+                                resultMap.put("user_id", rs.getLong("user_id"));
+                            } catch (SQLException e) {
+                                // La columna user_id podría no existir o ser NULL
+                            }
+                        }
+                        return resultMap;
+                    });
+            
+            Map<String, Object> userResult = createUserCall.execute(userParams);
+            
+            // Imprimir el resultado del stored procedure
+            System.out.println("DEBUG - User creation result: " + userResult);
+            
+            // Verificar si la creación del usuario fue exitosa
+            Long userId = null;
+            
+            if (userResult.containsKey("result")) {
+                @SuppressWarnings("unchecked")
+                List<Map<String, Object>> resultList = (List<Map<String, Object>>) userResult.get("result");
+                if (!resultList.isEmpty()) {
+                    Map<String, Object> result = resultList.get(0);
+                    Integer success = (Integer) result.get("success");
+                    if (success == null || success != 1) {
+                        String errorMessage = (String) result.get("message");
+                        return Result.failure("Error al crear usuario: " + errorMessage);
+                    }
+                    
+                    // Intentar obtener el ID del usuario del resultado
+                    if (result.containsKey("user_id") && result.get("user_id") != null) {
+                        userId = ((Number) result.get("user_id")).longValue();
+                    }
+                }
+            } else {
+                // Verificar el resultado directamente
+                Integer success = (Integer) userResult.get("success");
+                if (success == null || success != 1) {
+                    String errorMessage = (String) userResult.get("message");
+                    return Result.failure("Error al crear usuario: " + errorMessage);
+                }
+                
+                // Intentar obtener el ID del usuario del resultado
+                if (userResult.containsKey("user_id") && userResult.get("user_id") != null) {
+                    userId = ((Number) userResult.get("user_id")).longValue();
+                }
+            }
+            
+            // Si no se pudo obtener el ID del usuario del stored procedure, buscarlo por email
+            if (userId == null) {
+                Optional<User> createdUserOpt = userRepository.findByEmail(user.getEmail());
+                if (createdUserOpt.isEmpty()) {
+                    return Result.failure("No se pudo encontrar el usuario recién creado");
+                }
+                userId = createdUserOpt.get().getId();
+            }
+            
+            user.setId(userId);
+            
+            // Imprimir el usuario creado para verificar el rol
+            System.out.println("DEBUG - Created user: " + user);
+            System.out.println("DEBUG - Created user ID: " + userId);
+            System.out.println("DEBUG - Created user roleId: " + user.getRoleId());
+            
+            // 3. Crear perfil de tutor usando sp_create_guardian_profile existente
+            Map<String, Object> guardianParams = new HashMap<>();
+            guardianParams.put("user_id", userId);
+            guardianParams.put("phone", guardianProfile.getPhone());
+            
+            // Imprimir los parámetros del perfil de tutor
+            System.out.println("DEBUG - Guardian params: " + guardianParams);
+            
+            SimpleJdbcCall createGuardianCall = new SimpleJdbcCall(jdbcTemplate)
+                    .withProcedureName("sp_create_guardian_profile")
+                    .returningResultSet("result", (rs, rowNum) -> {
+                        Map<String, Object> resultMap = new HashMap<>();
+                        resultMap.put("success", rs.getInt("success"));
+                        resultMap.put("message", rs.getString("message"));
+                        if (rs.getMetaData().getColumnCount() > 2) {
+                            try {
+                                resultMap.put("guardian_profile_id", rs.getLong("guardian_profile_id"));
+                            } catch (SQLException e) {
+                                // La columna guardian_profile_id podría no existir o ser NULL
+                            }
+                        }
+                        return resultMap;
+                    });
+            
+            Map<String, Object> guardianResult = createGuardianCall.execute(guardianParams);
+            
+            // Imprimir el resultado de la creación del perfil
+            System.out.println("DEBUG - Guardian profile creation result: " + guardianResult);
+            
+            // Verificar si la creación del perfil fue exitosa
+            Long guardianProfileId = null;
+            
+            if (guardianResult.containsKey("result")) {
+                @SuppressWarnings("unchecked")
+                List<Map<String, Object>> resultList = (List<Map<String, Object>>) guardianResult.get("result");
+                if (!resultList.isEmpty()) {
+                    Map<String, Object> result = resultList.get(0);
+                    Integer success = (Integer) result.get("success");
+                    if (success == null || success != 1) {
+                        String errorMessage = (String) result.get("message");
+                        return Result.failure("Error al crear perfil de tutor: " + errorMessage);
+                    }
+                    
+                    // Intentar obtener el ID del perfil de guardián del resultado
+                    if (result.containsKey("guardian_profile_id") && result.get("guardian_profile_id") != null) {
+                        guardianProfileId = ((Number) result.get("guardian_profile_id")).longValue();
+                    }
+                }
+            } else {
+                // Verificar el resultado directamente
+                Integer success = (Integer) guardianResult.get("success");
+                if (success == null || success != 1) {
+                    String errorMessage = (String) guardianResult.get("message");
+                    return Result.failure("Error al crear perfil de tutor: " + errorMessage);
+                }
+                
+                // Intentar obtener el ID del perfil de guardián del resultado
+                if (guardianResult.containsKey("guardian_profile_id") && guardianResult.get("guardian_profile_id") != null) {
+                    guardianProfileId = ((Number) guardianResult.get("guardian_profile_id")).longValue();
+                }
+            }
+            
+            // Si no se pudo obtener el ID del perfil de guardián, buscarlo en la base de datos
+            if (guardianProfileId == null) {
+                try {
+                    guardianProfileId = jdbcTemplate.queryForObject(
+                        "SELECT id FROM guardian_profile WHERE user_id = ?", 
+                        Long.class, 
+                        userId
+                    );
+                } catch (Exception e) {
+                    System.out.println("DEBUG - Error al buscar el ID del perfil de guardián: " + e.getMessage());
+                    // Continuamos sin el ID, no es crítico para la respuesta
+                }
+            }
+            
+            // Establecer los IDs en los objetos
+            guardianProfile.setId(guardianProfileId);
+            guardianProfile.setUserId(userId);
+            
+            // No podemos acceder a los repositorios de rol e institución desde aquí
+            // ni establecer directamente los valores en CompleteGuardian
+            // Actualizamos los valores que podemos
+            user.setId(userId);
+            guardianProfile.setId(guardianProfileId);
+            completeGuardian.getUser().setId(userId);
+            completeGuardian.getGuardianProfile().setId(guardianProfileId);
             
             return Result.success(completeGuardian);
         } catch (Exception e) {
+            e.printStackTrace(); // Imprimir la excepción completa
             return Result.failure("Error al crear guardián: " + e.getMessage());
         }
     }
@@ -391,12 +670,16 @@ public class CompleteUserRepositoryImpl implements CompleteUserRepository {
     @Override
     public Optional<CompleteGuardian> findCompleteGuardianById(Long userId) {
         try {
+            System.out.println("DEBUG - findCompleteGuardianById: Buscando guardián con userId: " + userId);
+            
             // 1. Consultar datos del usuario
             String userSql = "SELECT u.*, r.name as role_name, i.name as institution_name " +
                              "FROM [user] u " +
-                             "JOIN role r ON u.role_id = r.id " +
-                             "JOIN institution i ON u.institution_id = i.id " +
+                             "LEFT JOIN role r ON u.role_id = r.id " +
+                             "LEFT JOIN institution i ON u.institution_id = i.id " +
                              "WHERE u.id = ?";
+            
+            System.out.println("DEBUG - findCompleteGuardianById: Ejecutando consulta de usuario: " + userSql);
             
             List<User> users = jdbcTemplate.query(userSql, new Object[]{userId}, (rs, rowNum) -> {
                 User user = mapUserFromResultSet(rs);
@@ -415,29 +698,47 @@ public class CompleteUserRepositoryImpl implements CompleteUserRepository {
             });
             
             if (users.isEmpty()) {
+                System.out.println("DEBUG - findCompleteGuardianById: No se encontró el usuario con ID: " + userId);
                 return Optional.empty();
             }
             
             User user = users.get(0);
+            System.out.println("DEBUG - findCompleteGuardianById: Usuario encontrado: " + user);
             
             // 2. Consultar datos del perfil de guardián
             String profileSql = "SELECT * FROM guardian_profile WHERE user_id = ?";
+            
+            System.out.println("DEBUG - findCompleteGuardianById: Ejecutando consulta de perfil de guardián: " + profileSql);
             
             List<GuardianProfile> profiles = jdbcTemplate.query(profileSql, new Object[]{userId}, (rs, rowNum) -> {
                 GuardianProfile profile = new GuardianProfile();
                 profile.setId(rs.getLong("id"));
                 profile.setUserId(rs.getLong("user_id"));
                 profile.setPhone(rs.getString("phone"));
+                
+                // Verificar si existe la columna relationship
+                try {
+                    String relationship = rs.getString("relationship");
+                    if (relationship != null) {
+                        System.out.println("DEBUG - findCompleteGuardianById: Relación encontrada: " + relationship);
+                    }
+                } catch (Exception e) {
+                    // La columna relationship podría no existir
+                    System.out.println("DEBUG - findCompleteGuardianById: La columna 'relationship' no existe en la tabla guardian_profile");
+                }
+                
                 profile.setCreatedAt(rs.getTimestamp("created_at"));
                 profile.setUpdatedAt(rs.getTimestamp("updated_at"));
                 return profile;
             });
             
             if (profiles.isEmpty()) {
+                System.out.println("DEBUG - findCompleteGuardianById: No se encontró el perfil de guardián para el usuario con ID: " + userId);
                 return Optional.empty();
             }
             
             GuardianProfile profile = profiles.get(0);
+            System.out.println("DEBUG - findCompleteGuardianById: Perfil de guardián encontrado: " + profile);
             
             // 3. Crear y retornar el objeto completo
             CompleteGuardian completeGuardian = new CompleteGuardian(
@@ -453,8 +754,11 @@ public class CompleteUserRepositoryImpl implements CompleteUserRepository {
                 user.getRole(), user.getInstitution()
             );
             
+            System.out.println("DEBUG - findCompleteGuardianById: CompleteGuardian creado exitosamente");
+            
             return Optional.of(completeGuardian);
         } catch (Exception e) {
+            System.out.println("ERROR - findCompleteGuardianById: Error al buscar guardián: " + e.getMessage());
             e.printStackTrace();
             return Optional.empty();
         }

@@ -1,6 +1,7 @@
 package com.gamified.application.auth.repository.core;
 
 import com.gamified.application.auth.entity.core.User;
+import com.gamified.application.auth.entity.core.Role;
 import com.gamified.application.auth.repository.interfaces.Result;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -193,12 +194,13 @@ public class UserRepositoryImpl implements UserRepository {
             
             Map<String, Object> userData = results.getFirst();
             
-            // Mapear datos del usuario
+            // Mapear datos del usuario según la estructura del sp_get_user_by_email existente
             Long id = ((Number) userData.get("id")).longValue();
             String firstName = (String) userData.get("first_name");
             String lastName = (String) userData.get("last_name");
             String password = (String) userData.get("password");
             Byte roleId = ((Number) userData.get("role_id")).byteValue();
+            String roleName = (String) userData.get("role_name");
             Boolean status = (Boolean) userData.get("status");
             Boolean emailVerified = (Boolean) userData.get("email_verified");
             
@@ -220,6 +222,14 @@ public class UserRepositoryImpl implements UserRepository {
             
             if (userData.get("created_at") != null) {
                 user.setCreatedAt((Timestamp) userData.get("created_at"));
+            }
+            
+            // Establecer el rol si está presente el nombre del rol
+            if (roleName != null) {
+                Role role = new Role();
+                role.setId(roleId);
+                role.setName(roleName);
+                user.setRole(role);
             }
             
             return Optional.of(user);

@@ -26,12 +26,25 @@ public class CompleteStudent {
             // Related objects for User (optional, for convenience)
             Role role, Institution institution
     ) {
+        // Imprimir información de depuración sobre el roleId
+        System.out.println("DEBUG - CompleteStudent constructor - roleId type: " + 
+                           (roleId != null ? roleId.getClass().getName() : "null") + 
+                           ", value: " + roleId);
+        
+        // Asegurarse de que roleId sea un Byte válido
+        Byte safeRoleId = roleId;
+        if (roleId == null && role != null) {
+            // Si roleId es nulo pero tenemos el objeto Role, usar su ID
+            safeRoleId = role.getId().byteValue();
+            System.out.println("DEBUG - Using role.getId() instead: " + safeRoleId);
+        }
+        
         this.user = new User(
                 id, firstName, lastName, email, password, profilePictureUrl, status,
                 emailVerified, emailVerificationToken, emailVerificationExpiresAt,
                 passwordResetToken, passwordResetExpiresAt, lastLoginAt, lastLoginIp,
                 failedLoginAttempts, accountLockedUntil, createdAt, updatedAt,
-                roleId, institutionId
+                safeRoleId, institutionId
         );
         this.studentProfile = new StudentProfile();
         this.studentProfile.setId(studentProfileId);
@@ -40,13 +53,16 @@ public class CompleteStudent {
         this.studentProfile.setUsername(username);
         this.studentProfile.setBirthDate(birth_date);
         // Al crear un usuario, se crea un estudiante con 0 puntos si no se proporciona un valor
-        this.studentProfile.setPointsAmount(0);
+        this.studentProfile.setPointsAmount(pointsAmount != null ? pointsAmount : 0);
         this.studentProfile.setCreatedAt(studentCreatedAt);
         this.studentProfile.setUpdatedAt(studentUpdatedAt);
         
         // Set related objects if provided
         this.user.setRole(role);
         this.user.setInstitution(institution);
+        
+        // Verificar que el roleId se haya establecido correctamente
+        System.out.println("DEBUG - Final user roleId: " + this.user.getRoleId());
     }
 
     // Getters

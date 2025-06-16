@@ -5,9 +5,10 @@ package com.gamified.application.auth.entity.enums;
  * Solo permite: Student, Teacher y Guardian
  */
 public enum RoleType {
-    STUDENT((byte) 1, "STUDENT", "Estudiante del sistema"),
+    ADMIN((byte) 1, "ADMIN", "Administrador del sistema"),
     TEACHER((byte) 2, "TEACHER", "Profesor o educador"),
-    GUARDIAN((byte) 3, "GUARDIAN", "Tutor o apoderado");
+    STUDENT((byte) 3, "STUDENT", "Estudiante del sistema"),
+    GUARDIAN((byte) 4, "GUARDIAN", "Tutor o apoderado");
 
     private final Byte id;
     private final String code;
