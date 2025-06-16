@@ -4,6 +4,8 @@ import com.gamified.application.auth.entity.core.User;
 import com.gamified.application.auth.repository.interfaces.Result;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Repository;
@@ -12,7 +14,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.sql.*;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -23,18 +27,34 @@ import java.util.UUID;
 public class UserRepositoryImpl implements UserRepository {
 
     private final JdbcTemplate jdbcTemplate;
+    private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
 
     @Autowired
-    public UserRepositoryImpl(JdbcTemplate jdbcTemplate) {
+    public UserRepositoryImpl(JdbcTemplate jdbcTemplate, NamedParameterJdbcTemplate namedParameterJdbcTemplate) {
         this.jdbcTemplate = jdbcTemplate;
+        this.namedParameterJdbcTemplate = namedParameterJdbcTemplate;
     }
 
     @Override
     public Optional<User> findById(Long id) {
         try {
-            String sql = "SELECT * FROM [user] WHERE id = ?";
-            List<User> users = jdbcTemplate.query(sql, (rs, rowNum) -> mapUser(rs), id);
-            return users.isEmpty() ? Optional.empty() : Optional.of(users.get(0));
+            MapSqlParameterSource parameters = new MapSqlParameterSource();
+            parameters.addValue("user_id", id, Types.BIGINT);
+
+            String sql = "EXEC sp_get_complete_user_by_id @user_id = :user_id";
+            
+            List<Map<String, Object>> results = namedParameterJdbcTemplate.queryForList(sql, parameters);
+            
+            if (results.isEmpty()) {
+                return Optional.empty();
+            }
+            
+            Map<String, Object> userData = results.getFirst();
+            
+            // Mapear datos básicos del usuario
+            User user = mapUserFromResultMap(userData);
+            
+            return Optional.of(user);
         } catch (Exception e) {
             // Log error
             return Optional.empty();
@@ -160,9 +180,49 @@ public class UserRepositoryImpl implements UserRepository {
     @Override
     public Optional<User> findByEmail(String email) {
         try {
-            String sql = "SELECT * FROM [user] WHERE email = ?";
-            List<User> users = jdbcTemplate.query(sql, (rs, rowNum) -> mapUser(rs), email);
-            return users.isEmpty() ? Optional.empty() : Optional.of(users.get(0));
+            MapSqlParameterSource parameters = new MapSqlParameterSource();
+            parameters.addValue("email", email, Types.VARCHAR);
+
+            String sql = "EXEC sp_get_user_by_email @email = :email";
+            
+            List<Map<String, Object>> results = namedParameterJdbcTemplate.queryForList(sql, parameters);
+            
+            if (results.isEmpty()) {
+                return Optional.empty();
+            }
+            
+            Map<String, Object> userData = results.getFirst();
+            
+            // Mapear datos del usuario
+            Long id = ((Number) userData.get("id")).longValue();
+            String firstName = (String) userData.get("first_name");
+            String lastName = (String) userData.get("last_name");
+            String password = (String) userData.get("password");
+            Byte roleId = ((Number) userData.get("role_id")).byteValue();
+            Boolean status = (Boolean) userData.get("status");
+            Boolean emailVerified = (Boolean) userData.get("email_verified");
+            
+            // Crear usuario con datos básicos
+            User user = new User(
+                id, firstName, lastName, email,
+                roleId, null, status, emailVerified
+            );
+            
+            // Establecer password si está presente
+            if (password != null) {
+                user.setPassword(password);
+            }
+            
+            // Establecer datos adicionales si están presentes
+            if (userData.get("last_login_at") != null) {
+                user.setLastLoginAt((Timestamp) userData.get("last_login_at"));
+            }
+            
+            if (userData.get("created_at") != null) {
+                user.setCreatedAt((Timestamp) userData.get("created_at"));
+            }
+            
+            return Optional.of(user);
         } catch (Exception e) {
             // Log error
             return Optional.empty();
@@ -172,9 +232,36 @@ public class UserRepositoryImpl implements UserRepository {
     @Override
     public Optional<User> findForAuthentication(String email) {
         try {
-            String sql = "SELECT * FROM [user] WHERE email = ?";
-            List<User> users = jdbcTemplate.query(sql, (rs, rowNum) -> mapUserForAuth(rs), email);
-            return users.isEmpty() ? Optional.empty() : Optional.of(users.get(0));
+            MapSqlParameterSource parameters = new MapSqlParameterSource();
+            parameters.addValue("email", email, Types.VARCHAR);
+            parameters.addValue("password", "", Types.VARCHAR); // Password se verifica en la capa de servicio con BCrypt
+
+            String sql = "EXEC sp_authenticate_user_complete @email = :email, @password = :password";
+            
+            List<Map<String, Object>> results = namedParameterJdbcTemplate.queryForList(sql, parameters);
+            
+            if (results.isEmpty()) {
+                return Optional.empty();
+            }
+            
+            Map<String, Object> result = results.getFirst();
+            
+            // Verificar si la autenticación fue exitosa
+            Integer success = (Integer) result.get("success");
+            if (success != 1) {
+                return Optional.empty();
+            }
+            
+            // Obtener datos del usuario
+            Long userId = ((Number) result.get("user_id")).longValue();
+            String passwordHash = (String) result.get("password_hash");
+            Byte roleId = ((Number) result.get("role_id")).byteValue();
+            
+            // Crear usuario con constructor para autenticación
+            // Usamos el constructor mínimo y luego completamos los datos necesarios
+            User user = new User(userId, null, null, email, passwordHash, roleId, null, true, false, 0, null, null, null);
+            
+            return Optional.of(user);
         } catch (Exception e) {
             // Log error
             return Optional.empty();
@@ -185,45 +272,20 @@ public class UserRepositoryImpl implements UserRepository {
     @Transactional
     public Result<Boolean> updateLoginStatus(Long userId, boolean successful, String ipAddress) {
         try {
-            if (successful) {
-                jdbcTemplate.update(
-                    "UPDATE [user] SET last_login_at = ?, last_login_ip = ?, failed_login_attempts = 0, " +
-                    "account_locked_until = NULL WHERE id = ?",
-                    new Timestamp(System.currentTimeMillis()),
-                    ipAddress,
-                    userId
-                );
-            } else {
-                // Primero obtenemos los intentos fallidos actuales
-                Integer failedAttempts = jdbcTemplate.queryForObject(
-                    "SELECT failed_login_attempts FROM [user] WHERE id = ?",
-                    Integer.class, 
-                    userId
-                );
-                
-                if (failedAttempts == null) {
-                    failedAttempts = 0;
-                }
-                
-                int newFailedAttempts = failedAttempts + 1;
-                
-                // Si supera el límite, bloqueamos la cuenta
-                if (newFailedAttempts >= 5) {
-                    // Bloquear por 30 minutos
-                    LocalDateTime lockUntil = LocalDateTime.now().plusMinutes(30);
-                    jdbcTemplate.update(
-                        "UPDATE [user] SET failed_login_attempts = ?, account_locked_until = ? WHERE id = ?",
-                        newFailedAttempts,
-                        Timestamp.valueOf(lockUntil),
-                        userId
-                    );
-                } else {
-                    jdbcTemplate.update(
-                        "UPDATE [user] SET failed_login_attempts = ? WHERE id = ?",
-                        newFailedAttempts,
-                        userId
-                    );
-                }
+            MapSqlParameterSource parameters = new MapSqlParameterSource();
+            parameters.addValue("user_id", userId, Types.BIGINT);
+            parameters.addValue("success", successful ? 1 : 0, Types.BIT);
+            parameters.addValue("ip_address", ipAddress, Types.VARCHAR);
+            parameters.addValue("user_agent", "Web Application", Types.VARCHAR); // Podría pasarse como parámetro adicional
+            parameters.addValue("login_time", new Timestamp(System.currentTimeMillis()), Types.TIMESTAMP);
+
+            String sql = "EXEC sp_record_login_attempt @user_id = :user_id, @success = :success, " +
+                         "@ip_address = :ip_address, @user_agent = :user_agent, @login_time = :login_time";
+            
+            List<Map<String, Object>> results = namedParameterJdbcTemplate.queryForList(sql, parameters);
+            
+            if (results.isEmpty()) {
+                return Result.failure("No se pudo actualizar el estado de login");
             }
             
             return Result.success(true);
@@ -371,5 +433,44 @@ public class UserRepositoryImpl implements UserRepository {
             rs.getTimestamp("last_login_at"),
             rs.getString("last_login_ip")
         );
+    }
+
+    /**
+     * Mapea un Map<String, Object> a un objeto User
+     */
+    private User mapUserFromResultMap(Map<String, Object> userData) {
+        Long id = ((Number) userData.get("id")).longValue();
+        String firstName = (String) userData.get("first_name");
+        String lastName = (String) userData.get("last_name");
+        String email = (String) userData.get("email");
+        Byte roleId = ((Number) userData.get("role_id")).byteValue();
+        Long institutionId = ((Number) userData.get("institution_id")).longValue();
+        Boolean status = (Boolean) userData.get("status");
+        Boolean emailVerified = (Boolean) userData.get("email_verified");
+        
+        // Crear usuario con constructor básico
+        User user = new User(
+            id, firstName, lastName, email,
+            roleId, institutionId, status, emailVerified
+        );
+        
+        // Establecer datos adicionales si están presentes
+        if (userData.get("profile_picture_url") != null) {
+            user.setProfilePictureUrl((String) userData.get("profile_picture_url"));
+        }
+        
+        if (userData.get("last_login_at") != null) {
+            user.setLastLoginAt((Timestamp) userData.get("last_login_at"));
+        }
+        
+        if (userData.get("created_at") != null) {
+            user.setCreatedAt((Timestamp) userData.get("created_at"));
+        }
+        
+        if (userData.get("updated_at") != null) {
+            user.setUpdatedAt((Timestamp) userData.get("updated_at"));
+        }
+        
+        return user;
     }
 } 

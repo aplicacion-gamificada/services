@@ -4,15 +4,24 @@ import com.gamified.application.auth.entity.core.Institution;
 import com.gamified.application.auth.repository.interfaces.Result;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.sql.*;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.sql.Timestamp;
+import java.sql.Types;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -22,21 +31,139 @@ import java.util.Optional;
 public class InstitutionRepositoryImpl implements InstitutionRepository {
 
     private final JdbcTemplate jdbcTemplate;
+    private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
 
     @Autowired
-    public InstitutionRepositoryImpl(JdbcTemplate jdbcTemplate) {
+    public InstitutionRepositoryImpl(JdbcTemplate jdbcTemplate, NamedParameterJdbcTemplate namedParameterJdbcTemplate) {
         this.jdbcTemplate = jdbcTemplate;
+        this.namedParameterJdbcTemplate = namedParameterJdbcTemplate;
     }
 
     @Override
     public Optional<Institution> findById(Long id) {
         try {
-            String sql = "SELECT * FROM institution WHERE id = ?";
-            List<Institution> institutions = jdbcTemplate.query(sql, (rs, rowNum) -> mapInstitution(rs), id);
-            return institutions.isEmpty() ? Optional.empty() : Optional.of(institutions.get(0));
+            MapSqlParameterSource parameters = new MapSqlParameterSource();
+            parameters.addValue("institution_id", id, Types.BIGINT);
+
+            String sql = "EXEC sp_get_institution_by_id @institution_id = :institution_id";
+            
+            List<Map<String, Object>> results = namedParameterJdbcTemplate.queryForList(sql, parameters);
+            
+            if (results.isEmpty()) {
+                return Optional.empty();
+            }
+            
+            Map<String, Object> institutionData = results.getFirst();
+            
+            // Mapear datos de la institución
+            Institution institution = mapInstitutionFromResultMap(institutionData);
+            
+            return Optional.of(institution);
         } catch (Exception e) {
             // Log error
             return Optional.empty();
+        }
+    }
+    
+    /**
+     * Mapea un Map<String, Object> a un objeto Institution
+     */
+    private Institution mapInstitutionFromResultMap(Map<String, Object> data) {
+        try {
+            Institution institution = new Institution();
+            
+            // Mapeo seguro del ID
+            Object idObj = data.get("id");
+            if (idObj != null) {
+                if (idObj instanceof Number) {
+                    institution.setId(((Number) idObj).longValue());
+                } else {
+                    // Intento de conversión alternativa
+                    institution.setId(Long.parseLong(idObj.toString()));
+                }
+            }
+            
+            // Mapeo seguro del nombre
+            institution.setName((String) data.get("name"));
+            
+            // Mapeo seguro de campos opcionales
+            if (data.get("address") != null) {
+                institution.setAddress((String) data.get("address"));
+            }
+            
+            if (data.get("city") != null) {
+                institution.setCity((String) data.get("city"));
+            }
+            
+            if (data.get("state") != null) {
+                institution.setState((String) data.get("state"));
+            }
+            
+            if (data.get("country") != null) {
+                institution.setCountry((String) data.get("country"));
+            }
+            
+            if (data.get("postal_code") != null) {
+                institution.setPostalCode((String) data.get("postal_code"));
+            }
+            
+            if (data.get("phone") != null) {
+                institution.setPhone((String) data.get("phone"));
+            }
+            
+            if (data.get("email") != null) {
+                institution.setEmail((String) data.get("email"));
+            }
+            
+            if (data.get("website") != null) {
+                institution.setWebsite((String) data.get("website"));
+            }
+            
+            if (data.get("logo_url") != null) {
+                institution.setLogoUrl((String) data.get("logo_url"));
+            }
+            
+            // Mapeo seguro del estado
+            Object statusObj = data.get("status");
+            if (statusObj != null) {
+                if (statusObj instanceof Boolean) {
+                    institution.setStatus((Boolean) statusObj);
+                } else if (statusObj instanceof Number) {
+                    // SQL Server puede devolver 1/0 en lugar de true/false
+                    institution.setStatus(((Number) statusObj).intValue() == 1);
+                } else {
+                    // Última opción: convertir a string y evaluar
+                    String statusStr = statusObj.toString();
+                    institution.setStatus("1".equals(statusStr) || "true".equalsIgnoreCase(statusStr));
+                }
+            } else {
+                // Valor predeterminado
+                institution.setStatus(true);
+            }
+            
+            // Mapeo seguro de fechas
+            if (data.get("created_at") != null) {
+                Object createdAtObj = data.get("created_at");
+                if (createdAtObj instanceof Timestamp) {
+                    institution.setCreatedAt(((Timestamp) createdAtObj).toLocalDateTime());
+                } else if (createdAtObj instanceof LocalDateTime) {
+                    institution.setCreatedAt((LocalDateTime) createdAtObj);
+                }
+            }
+            
+            if (data.get("updated_at") != null) {
+                Object updatedAtObj = data.get("updated_at");
+                if (updatedAtObj instanceof Timestamp) {
+                    institution.setUpdatedAt(((Timestamp) updatedAtObj).toLocalDateTime());
+                } else if (updatedAtObj instanceof LocalDateTime) {
+                    institution.setUpdatedAt((LocalDateTime) updatedAtObj);
+                }
+            }
+            
+            return institution;
+        } catch (Exception e) {
+            System.err.println("Error en mapInstitutionFromResultMap: " + e.getMessage());
+            throw e; // Re-lanzar para manejar en el nivel superior
         }
     }
 
@@ -56,38 +183,41 @@ public class InstitutionRepositoryImpl implements InstitutionRepository {
 
     private Result<Institution> insert(Institution institution) {
         try {
-            KeyHolder keyHolder = new GeneratedKeyHolder();
+            MapSqlParameterSource parameters = new MapSqlParameterSource();
+            parameters.addValue("name", institution.getName(), Types.NVARCHAR);
+            parameters.addValue("address", institution.getAddress(), Types.NVARCHAR);
+            parameters.addValue("city", institution.getCity(), Types.NVARCHAR);
+            parameters.addValue("state", institution.getState(), Types.NVARCHAR);
+            parameters.addValue("country", institution.getCountry(), Types.NVARCHAR);
+            parameters.addValue("postal_code", institution.getPostalCode(), Types.NVARCHAR);
+            parameters.addValue("phone", institution.getPhone(), Types.NVARCHAR);
+            parameters.addValue("email", institution.getEmail(), Types.NVARCHAR);
+            parameters.addValue("website", institution.getWebsite(), Types.NVARCHAR);
+            parameters.addValue("logo_url", institution.getLogoUrl(), Types.NVARCHAR);
+
+            String sql = "EXEC sp_create_institution @name = :name, @address = :address, " +
+                         "@city = :city, @state = :state, @country = :country, " +
+                         "@postal_code = :postal_code, @phone = :phone, @email = :email, " +
+                         "@website = :website, @logo_url = :logo_url";
             
-            jdbcTemplate.update(connection -> {
-                PreparedStatement ps = connection.prepareStatement(
-                    "INSERT INTO institution (name, address, city, state, country, postal_code, " +
-                    "phone, email, website, logo_url, status, created_at, updated_at) " +
-                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                    Statement.RETURN_GENERATED_KEYS
-                );
-                ps.setString(1, institution.getName());
-                ps.setString(2, institution.getAddress());
-                ps.setString(3, institution.getCity());
-                ps.setString(4, institution.getState());
-                ps.setString(5, institution.getCountry());
-                ps.setString(6, institution.getPostalCode());
-                ps.setString(7, institution.getPhone());
-                ps.setString(8, institution.getEmail());
-                ps.setString(9, institution.getWebsite());
-                ps.setString(10, institution.getLogoUrl());
-                ps.setBoolean(11, institution.getStatus() != null ? institution.getStatus() : true);
+            List<Map<String, Object>> results = namedParameterJdbcTemplate.queryForList(sql, parameters);
+            
+            if (!results.isEmpty()) {
+                Map<String, Object> result = results.getFirst();
                 
-                LocalDateTime now = LocalDateTime.now();
-                ps.setTimestamp(12, Timestamp.valueOf(institution.getCreatedAt() != null ? institution.getCreatedAt() : now));
-                ps.setTimestamp(13, Timestamp.valueOf(institution.getUpdatedAt() != null ? institution.getUpdatedAt() : now));
+                // Verificar si la operación fue exitosa
+                Integer success = (Integer) result.get("success");
                 
-                return ps;
-            }, keyHolder);
+                if (success == 1) {
+                    // Obtener el ID generado
+                    Long institutionId = ((Number) result.get("institution_id")).longValue();
+                    institution.setId(institutionId);
+                    
+                    return Result.success(institution);
+                }
+            }
             
-            Long institutionId = keyHolder.getKey().longValue();
-            institution.setId(institutionId);
-            
-            return Result.success(institution);
+            return Result.failure("No se pudo crear la institución");
         } catch (Exception e) {
             return Result.failure("Error al insertar institución: " + e.getMessage(), e);
         }
@@ -95,30 +225,39 @@ public class InstitutionRepositoryImpl implements InstitutionRepository {
 
     private Result<Institution> update(Institution institution) {
         try {
-            int rowsAffected = jdbcTemplate.update(
-                "UPDATE institution SET name = ?, address = ?, city = ?, state = ?, " +
-                "country = ?, postal_code = ?, phone = ?, email = ?, website = ?, " +
-                "logo_url = ?, status = ?, updated_at = ? WHERE id = ?",
-                institution.getName(),
-                institution.getAddress(),
-                institution.getCity(),
-                institution.getState(),
-                institution.getCountry(),
-                institution.getPostalCode(),
-                institution.getPhone(),
-                institution.getEmail(),
-                institution.getWebsite(),
-                institution.getLogoUrl(),
-                institution.getStatus(),
-                Timestamp.valueOf(LocalDateTime.now()),
-                institution.getId()
-            );
+            MapSqlParameterSource parameters = new MapSqlParameterSource();
+            parameters.addValue("institution_id", institution.getId(), Types.BIGINT);
+            parameters.addValue("name", institution.getName(), Types.NVARCHAR);
+            parameters.addValue("address", institution.getAddress(), Types.NVARCHAR);
+            parameters.addValue("city", institution.getCity(), Types.NVARCHAR);
+            parameters.addValue("state", institution.getState(), Types.NVARCHAR);
+            parameters.addValue("country", institution.getCountry(), Types.NVARCHAR);
+            parameters.addValue("postal_code", institution.getPostalCode(), Types.NVARCHAR);
+            parameters.addValue("phone", institution.getPhone(), Types.NVARCHAR);
+            parameters.addValue("email", institution.getEmail(), Types.NVARCHAR);
+            parameters.addValue("website", institution.getWebsite(), Types.NVARCHAR);
+            parameters.addValue("logo_url", institution.getLogoUrl(), Types.NVARCHAR);
+            parameters.addValue("status", institution.getStatus(), Types.BIT);
+
+            String sql = "EXEC sp_update_institution @institution_id = :institution_id, @name = :name, " +
+                         "@address = :address, @city = :city, @state = :state, @country = :country, " +
+                         "@postal_code = :postal_code, @phone = :phone, @email = :email, " +
+                         "@website = :website, @logo_url = :logo_url, @status = :status";
             
-            if (rowsAffected > 0) {
-                return Result.success(institution);
-            } else {
-                return Result.failure("No se encontró la institución con ID: " + institution.getId());
+            List<Map<String, Object>> results = namedParameterJdbcTemplate.queryForList(sql, parameters);
+            
+            if (!results.isEmpty()) {
+                Map<String, Object> result = results.getFirst();
+                
+                // Verificar si la operación fue exitosa
+                Integer success = (Integer) result.get("success");
+                
+                if (success == 1) {
+                    return Result.success(institution);
+                }
             }
+            
+            return Result.failure("No se pudo actualizar la institución con ID: " + institution.getId());
         } catch (Exception e) {
             return Result.failure("Error al actualizar institución: " + e.getMessage(), e);
         }
@@ -128,12 +267,27 @@ public class InstitutionRepositoryImpl implements InstitutionRepository {
     @Transactional
     public Result<Boolean> delete(Long id) {
         try {
-            int rowsAffected = jdbcTemplate.update("DELETE FROM institution WHERE id = ?", id);
-            if (rowsAffected > 0) {
-                return Result.success(true);
-            } else {
-                return Result.failure("No se encontró la institución con ID: " + id);
+            MapSqlParameterSource parameters = new MapSqlParameterSource();
+            parameters.addValue("institution_id", id, Types.BIGINT);
+
+            String sql = "EXEC sp_delete_institution @institution_id = :institution_id";
+            
+            List<Map<String, Object>> results = namedParameterJdbcTemplate.queryForList(sql, parameters);
+            
+            if (results.isEmpty()) {
+                return Result.failure("No se pudo eliminar la institución");
             }
+            
+            Map<String, Object> result = results.getFirst();
+            
+            // Verificar si la operación fue exitosa
+            Integer success = (Integer) result.get("success");
+            
+            if (success != 1) {
+                return Result.failure((String) result.get("message"));
+            }
+            
+            return Result.success(true);
         } catch (Exception e) {
             return Result.failure("Error al eliminar institución: " + e.getMessage(), e);
         }
@@ -142,7 +296,16 @@ public class InstitutionRepositoryImpl implements InstitutionRepository {
     @Override
     public List<Institution> findAll() {
         try {
-            return jdbcTemplate.query("SELECT * FROM institution", (rs, rowNum) -> mapInstitution(rs));
+            String sql = "EXEC sp_get_all_institutions";
+            
+            List<Map<String, Object>> results = namedParameterJdbcTemplate.queryForList(sql, new HashMap<>());
+            
+            List<Institution> institutions = new ArrayList<>();
+            for (Map<String, Object> data : results) {
+                institutions.add(mapInstitutionFromResultMap(data));
+            }
+            
+            return institutions;
         } catch (Exception e) {
             // Log error
             return new ArrayList<>();
@@ -152,9 +315,23 @@ public class InstitutionRepositoryImpl implements InstitutionRepository {
     @Override
     public Optional<Institution> findByName(String name) {
         try {
-            String sql = "SELECT * FROM institution WHERE name = ?";
-            List<Institution> institutions = jdbcTemplate.query(sql, (rs, rowNum) -> mapInstitution(rs), name);
-            return institutions.isEmpty() ? Optional.empty() : Optional.of(institutions.get(0));
+            MapSqlParameterSource parameters = new MapSqlParameterSource();
+            parameters.addValue("name", name, Types.NVARCHAR);
+
+            String sql = "EXEC sp_get_institution_by_name @name = :name";
+            
+            List<Map<String, Object>> results = namedParameterJdbcTemplate.queryForList(sql, parameters);
+            
+            if (!results.isEmpty()) {
+                Map<String, Object> institutionData = results.getFirst();
+                
+                // Mapear datos de la institución
+                Institution institution = mapInstitutionFromResultMap(institutionData);
+                
+                return Optional.of(institution);
+            }
+            
+            return Optional.empty();
         } catch (Exception e) {
             // Log error
             return Optional.empty();
@@ -164,21 +341,21 @@ public class InstitutionRepositoryImpl implements InstitutionRepository {
     @Override
     public List<Institution> findByLocation(String country, String state, String city) {
         try {
-            StringBuilder sql = new StringBuilder("SELECT * FROM institution WHERE country = ?");
-            List<Object> params = new ArrayList<>();
-            params.add(country);
+            MapSqlParameterSource parameters = new MapSqlParameterSource();
+            parameters.addValue("country", country, Types.VARCHAR);
+            parameters.addValue("state", state, Types.VARCHAR);
+            parameters.addValue("city", city, Types.VARCHAR);
+
+            String sql = "EXEC sp_get_institutions_by_location @country = :country, @state = :state, @city = :city";
             
-            if (state != null && !state.trim().isEmpty()) {
-                sql.append(" AND state = ?");
-                params.add(state);
+            List<Map<String, Object>> results = namedParameterJdbcTemplate.queryForList(sql, parameters);
+            
+            List<Institution> institutions = new ArrayList<>();
+            for (Map<String, Object> data : results) {
+                institutions.add(mapInstitutionFromResultMap(data));
             }
             
-            if (city != null && !city.trim().isEmpty()) {
-                sql.append(" AND city = ?");
-                params.add(city);
-            }
-            
-            return jdbcTemplate.query(sql.toString(), (rs, rowNum) -> mapInstitution(rs), params.toArray());
+            return institutions;
         } catch (Exception e) {
             // Log error
             return new ArrayList<>();
@@ -193,13 +370,24 @@ public class InstitutionRepositoryImpl implements InstitutionRepository {
     @Override
     public boolean updateStatus(Long institutionId, boolean active) {
         try {
-            int rowsAffected = jdbcTemplate.update(
-                "UPDATE institution SET status = ?, updated_at = ? WHERE id = ?",
-                active,
-                Timestamp.valueOf(LocalDateTime.now()),
-                institutionId
-            );
-            return rowsAffected > 0;
+            MapSqlParameterSource parameters = new MapSqlParameterSource();
+            parameters.addValue("institution_id", institutionId, Types.BIGINT);
+            parameters.addValue("status", active, Types.BIT);
+
+            String sql = "EXEC sp_update_institution_status @institution_id = :institution_id, @status = :status";
+            
+            List<Map<String, Object>> results = namedParameterJdbcTemplate.queryForList(sql, parameters);
+            
+            if (results.isEmpty()) {
+                return false;
+            }
+            
+            Map<String, Object> result = results.getFirst();
+            
+            // Verificar si la operación fue exitosa
+            Integer success = (Integer) result.get("success");
+            
+            return success == 1;
         } catch (Exception e) {
             // Log error
             return false;
@@ -209,12 +397,20 @@ public class InstitutionRepositoryImpl implements InstitutionRepository {
     @Override
     public List<Institution> findAllActive() {
         try {
-            return jdbcTemplate.query(
-                "SELECT * FROM institution WHERE status = 1",
-                (rs, rowNum) -> mapInstitution(rs)
-            );
+            String sql = "EXEC sp_get_active_institutions";
+            
+            List<Map<String, Object>> results = namedParameterJdbcTemplate.queryForList(sql, new HashMap<>());
+            
+            List<Institution> institutions = new ArrayList<>();
+            for (Map<String, Object> data : results) {
+                institutions.add(mapInstitutionFromResultMap(data));
+            }
+            
+            return institutions;
         } catch (Exception e) {
             // Log error
+            System.err.println("Error al ejecutar sp_get_active_institutions: " + e.getMessage());
+            e.printStackTrace();
             return new ArrayList<>();
         }
     }
@@ -222,12 +418,20 @@ public class InstitutionRepositoryImpl implements InstitutionRepository {
     @Override
     public List<Institution> searchByName(String query, int limit) {
         try {
-            return jdbcTemplate.query(
-                "SELECT * FROM institution WHERE name LIKE ? LIMIT ?",
-                (rs, rowNum) -> mapInstitution(rs),
-                "%" + query + "%",
-                limit
-            );
+            MapSqlParameterSource parameters = new MapSqlParameterSource();
+            parameters.addValue("search_term", query, Types.VARCHAR);
+            parameters.addValue("limit", limit, Types.INTEGER);
+
+            String sql = "EXEC sp_search_institutions_by_name @search_term = :search_term, @limit = :limit";
+            
+            List<Map<String, Object>> results = namedParameterJdbcTemplate.queryForList(sql, parameters);
+            
+            List<Institution> institutions = new ArrayList<>();
+            for (Map<String, Object> data : results) {
+                institutions.add(mapInstitutionFromResultMap(data));
+            }
+            
+            return institutions;
         } catch (Exception e) {
             // Log error
             return new ArrayList<>();

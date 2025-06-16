@@ -1,6 +1,6 @@
 package com.gamified.application.auth.service.auth;
 
-import com.gamified.application.auth.config.JwtConfig;
+import com.gamified.application.config.JwtConfig;
 import com.gamified.application.auth.dto.request.SessionRequestDto;
 import com.gamified.application.auth.dto.response.CommonResponseDto;
 import com.gamified.application.auth.dto.response.SessionResponseDto;

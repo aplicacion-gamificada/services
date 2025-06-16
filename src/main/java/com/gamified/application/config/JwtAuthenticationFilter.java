@@ -1,4 +1,4 @@
-package com.gamified.application.auth.config;
+package com.gamified.application.config;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;

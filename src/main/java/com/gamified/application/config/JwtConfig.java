@@ -1,4 +1,4 @@
-package com.gamified.application.auth.config;
+package com.gamified.application.config;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
