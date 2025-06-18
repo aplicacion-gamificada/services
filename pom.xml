@@ -83,6 +83,15 @@
 			<version>12.10.0.jre11</version>
 			<scope>runtime</scope>
 		</dependency>
+		
+		<!-- H2 Database for Testing - COMMENTED OUT: Using SQL Server Local for tests instead -->
+		<!--
+		<dependency>
+			<groupId>com.h2database</groupId>
+			<artifactId>h2</artifactId>
+			<scope>test</scope>
+		</dependency>
+		-->
 
 		<!-- JWT Dependencies -->
 		<dependency>
