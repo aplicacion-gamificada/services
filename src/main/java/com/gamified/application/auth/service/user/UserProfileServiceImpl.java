@@ -14,6 +14,7 @@ import com.gamified.application.auth.entity.profiles.TeacherProfile;
 import com.gamified.application.auth.repository.composite.CompleteUserRepository;
 import com.gamified.application.auth.repository.core.UserRepository;
 import com.gamified.application.auth.repository.interfaces.Result;
+import com.gamified.application.auth.util.DatabaseUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -336,7 +337,7 @@ public class UserProfileServiceImpl implements UserProfileService {
                 .email(rs.getString("email"))
                 .profilePictureUrl(rs.getString("profile_picture_url"))
                 .roleName(rs.getString("role_name"))
-                .status(rs.getBoolean("status"))
+                .status(DatabaseUtils.safeToBoolean(rs.getObject("status"))) // 🔧 CORREGIDO
                 .lastLoginAt(rs.getTimestamp("last_login_at") != null ? 
                             rs.getTimestamp("last_login_at").toLocalDateTime() : null)
                 .createdAt(rs.getTimestamp("created_at") != null ? 

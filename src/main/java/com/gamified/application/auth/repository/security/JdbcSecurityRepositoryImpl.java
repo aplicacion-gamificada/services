@@ -1,9 +1,11 @@
 package com.gamified.application.auth.repository.security;
 
+import com.gamified.application.auth.entity.audit.LoginHistory;
 import com.gamified.application.auth.entity.security.EmailVerification;
 import com.gamified.application.auth.entity.security.PasswordHistory;
 import com.gamified.application.auth.entity.security.RefreshToken;
 import com.gamified.application.auth.repository.interfaces.Result;
+import com.gamified.application.auth.util.DatabaseUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -15,6 +17,7 @@ import org.springframework.jdbc.core.simple.SimpleJdbcInsert;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 import javax.sql.DataSource;
 import java.sql.PreparedStatement;
@@ -42,7 +45,7 @@ public class JdbcSecurityRepositoryImpl implements SecurityRepository {
             rs.getString("token"),
             rs.getLong("user_id"),
             rs.getTimestamp("expires_at"),
-            rs.getBoolean("is_revoked"),
+            DatabaseUtils.safeToBoolean(rs.getObject("is_revoked")),
             rs.getObject("revoked_at", LocalDateTime.class),
             rs.getString("revoked_reason"),
             rs.getTimestamp("created_at"),
@@ -61,7 +64,7 @@ public class JdbcSecurityRepositoryImpl implements SecurityRepository {
             rs.getString("email"),
             rs.getString("verification_token"),
             rs.getTimestamp("expires_at"),
-            rs.getBoolean("is_verified"),
+            DatabaseUtils.safeToBoolean(rs.getObject("is_verified")),
             rs.getTimestamp("verified_at"),
             rs.getInt("attempt_count"),
             rs.getTimestamp("last_attempt_at"),
@@ -77,7 +80,7 @@ public class JdbcSecurityRepositoryImpl implements SecurityRepository {
             rs.getLong("user_id"),
             rs.getString("password_hash"),
             rs.getTimestamp("changed_at"),
-            rs.getBoolean("changed_by_admin"),
+            DatabaseUtils.safeToBoolean(rs.getObject("changed_by_admin")),
             rs.getString("ip_address"),
             rs.getString("user_agent")
         );

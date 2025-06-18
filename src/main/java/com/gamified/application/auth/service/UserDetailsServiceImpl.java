@@ -1,5 +1,6 @@
 package com.gamified.application.auth.service;
 
+import com.gamified.application.auth.util.DatabaseUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -33,9 +34,11 @@ public class UserDetailsServiceImpl implements UserDetailsService {
             try {
                 UserDetails userDetails = jdbcTemplate.queryForObject(sql, (rs, rowNum) -> {
                     String roleName = rs.getString("role_name");
-                    boolean isActive = rs.getBoolean("is_active");
-                    boolean emailVerified = rs.getBoolean("email_verified");
-                    boolean status = rs.getBoolean("status");
+                    
+                    // Usar DatabaseUtils para conversión segura de campos boolean (int en BD)
+                    boolean isActive = DatabaseUtils.safeToBoolean(rs.getObject("is_active"));
+                    boolean emailVerified = DatabaseUtils.safeToBoolean(rs.getObject("email_verified"));
+                    boolean status = DatabaseUtils.safeToBoolean(rs.getObject("status"));
                     
                     log.info("Found user by email - Role: {}, Active: {}, EmailVerified: {}, Status: {}", 
                             roleName, isActive, emailVerified, status);
@@ -82,8 +85,10 @@ public class UserDetailsServiceImpl implements UserDetailsService {
                         "WHERE sp.username = ? AND u.is_active = 1";
 
                 UserDetails studentDetails = jdbcTemplate.queryForObject(studentSql, (rs, rowNum) -> {
-                    // Para estudiantes, no requerir email_verified
-                    boolean enabled = rs.getBoolean("is_active") && rs.getBoolean("status");
+                    // Para estudiantes, no requerir email_verified, usar DatabaseUtils para conversión segura
+                    boolean isActive = DatabaseUtils.safeToBoolean(rs.getObject("is_active"));
+                    boolean status = DatabaseUtils.safeToBoolean(rs.getObject("status"));
+                    boolean enabled = isActive && status;
                     
                     Long userId = rs.getLong("id");
                     String roleName = rs.getString("role_name");
@@ -96,7 +101,7 @@ public class UserDetailsServiceImpl implements UserDetailsService {
                             enabled,
                             true,
                             true,
-                            rs.getBoolean("status"),
+                            status,
                             Collections.singleton(new SimpleGrantedAuthority("ROLE_" + roleName))
                     );
                 }, identifier);

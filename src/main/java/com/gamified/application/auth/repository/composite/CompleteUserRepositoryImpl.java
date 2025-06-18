@@ -11,6 +11,7 @@ import com.gamified.application.auth.entity.profiles.StudentProfile;
 import com.gamified.application.auth.entity.profiles.TeacherProfile;
 import com.gamified.application.auth.repository.core.UserRepository;
 import com.gamified.application.auth.repository.interfaces.Result;
+import com.gamified.application.auth.util.DatabaseUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.simple.SimpleJdbcCall;
@@ -633,7 +634,7 @@ public class CompleteUserRepositoryImpl implements CompleteUserRepository {
                 TeacherProfile profile = new TeacherProfile();
                 profile.setId(rs.getLong("id"));
                 profile.setUserId(rs.getLong("user_id"));
-                profile.setEmailVerified(rs.getBoolean("email_verified"));
+                profile.setEmailVerified(DatabaseUtils.safeToBoolean(rs.getObject("email_verified"))); // 🔧 CORREGIDO
                 profile.setStemAreaId(rs.getByte("stem_area_id"));
                 profile.setCreatedAt(rs.getTimestamp("created_at"));
                 profile.setUpdatedAt(rs.getTimestamp("updated_at"));
@@ -935,8 +936,8 @@ public class CompleteUserRepositoryImpl implements CompleteUserRepository {
             rs.getString("email"),
             rs.getString("password"),
             rs.getString("profile_picture_url"),
-            rs.getBoolean("status"),
-            rs.getBoolean("email_verified"),
+            DatabaseUtils.safeToBoolean(rs.getObject("status")), // 🔧 CORREGIDO
+            DatabaseUtils.safeToBoolean(rs.getObject("email_verified")), // 🔧 CORREGIDO
             rs.getString("email_verification_token"),
             rs.getTimestamp("email_verification_expires_at"),
             rs.getString("password_reset_token"),

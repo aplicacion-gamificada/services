@@ -3,6 +3,7 @@ package com.gamified.application.auth.repository.core;
 import com.gamified.application.auth.entity.core.User;
 import com.gamified.application.auth.entity.core.Role;
 import com.gamified.application.auth.repository.interfaces.Result;
+import com.gamified.application.auth.util.DatabaseUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
@@ -183,70 +184,85 @@ public class UserRepositoryImpl implements UserRepository {
         System.out.println("UserRepository.findByEmail - Starting search for email: " + email);
         
         try {
-            // Usar consulta SQL directa en lugar del stored procedure problemático
-            String sql = "SELECT u.id, u.role_id, u.institution_id, u.first_name, u.last_name, u.email, " +
-                        "u.password, u.profile_picture_url, u.created_at, u.updated_at, u.status, " +
-                        "u.email_verified, u.last_login_at, u.last_login_ip, r.name as role_name " +
-                        "FROM [user] u " +
-                        "JOIN role r ON u.role_id = r.id " +
-                        "WHERE u.email = ? AND u.is_active = 1";
+            MapSqlParameterSource parameters = new MapSqlParameterSource();
+            parameters.addValue("email", email, Types.VARCHAR);
+
+            String sql = "EXEC sp_get_user_by_email @email = :email";
             
-            System.out.println("UserRepository.findByEmail - Executing SQL: " + sql);
+            System.out.println("UserRepository.findByEmail - Executing SP: " + sql);
             System.out.println("UserRepository.findByEmail - Parameters: email=" + email);
             
-            try {
-                User user = jdbcTemplate.queryForObject(sql, (rs, rowNum) -> {
-                    Long id = rs.getLong("id");
-                    Byte roleId = rs.getByte("role_id");
-                    Long institutionId = rs.getLong("institution_id");
-                    String firstName = rs.getString("first_name");
-                    String lastName = rs.getString("last_name");
-                    String userEmail = rs.getString("email");
-                    String password = rs.getString("password");
-                    String profilePictureUrl = rs.getString("profile_picture_url");
-                    Timestamp createdAt = rs.getTimestamp("created_at");
-                    Timestamp updatedAt = rs.getTimestamp("updated_at");
-                    Boolean status = rs.getBoolean("status");
-                    Boolean emailVerified = rs.getBoolean("email_verified");
-                    Timestamp lastLoginAt = rs.getTimestamp("last_login_at");
-                    String lastLoginIp = rs.getString("last_login_ip");
-                    String roleName = rs.getString("role_name");
-                    
-                    System.out.println("UserRepository.findByEmail - Found user: id=" + id + ", firstName=" + firstName + 
-                                      ", lastName=" + lastName + ", roleId=" + roleId + ", roleName=" + roleName + 
-                                      ", status=" + status + ", emailVerified=" + emailVerified);
-                    
-                    // Crear usuario con datos completos
-                    User foundUser = new User(
-                        id, firstName, lastName, userEmail,
-                        roleId, institutionId, status, emailVerified
-                    );
-                    
-                    foundUser.setPassword(password);
-                    foundUser.setProfilePictureUrl(profilePictureUrl);
-                    foundUser.setCreatedAt(createdAt);
-                    foundUser.setUpdatedAt(updatedAt);
-                    foundUser.setLastLoginAt(lastLoginAt);
-                    foundUser.setLastLoginIp(lastLoginIp);
-                    
-                    // Establecer el rol
-                    if (roleName != null) {
-                        Role role = new Role();
-                        role.setId(roleId);
-                        role.setName(roleName);
-                        foundUser.setRole(role);
-                    }
-                    
-                    return foundUser;
-                }, email);
-                
-                System.out.println("UserRepository.findByEmail - Successfully found and mapped user");
-                return Optional.of(user);
-                
-            } catch (org.springframework.dao.EmptyResultDataAccessException e) {
-                System.out.println("UserRepository.findByEmail - No user found with email: " + email);
+            List<Map<String, Object>> results = namedParameterJdbcTemplate.queryForList(sql, parameters);
+            
+            System.out.println("UserRepository.findByEmail - SP Results count: " + results.size());
+            
+            if (results.isEmpty()) {
+                System.out.println("UserRepository.findByEmail - No results found, returning empty");
                 return Optional.empty();
             }
+            
+            Map<String, Object> userData = results.getFirst();
+            System.out.println("UserRepository.findByEmail - Found user data: " + userData);
+            
+            // Mapear datos del usuario según la estructura del sp_get_user_by_email corregido
+            Long id = ((Number) userData.get("id")).longValue();
+            String firstName = (String) userData.get("first_name");
+            String lastName = (String) userData.get("last_name");
+            String password = (String) userData.get("password");
+            Byte roleId = ((Number) userData.get("role_id")).byteValue();
+            String roleName = (String) userData.get("role_name");
+            
+            // Manejar campos boolean que vienen como Integer desde SQL Server
+            Boolean status = DatabaseUtils.safeToBoolean(userData.get("status"));
+            Boolean emailVerified = DatabaseUtils.safeToBoolean(userData.get("email_verified"));
+            Long institutionId = userData.get("institution_id") != null ? ((Number) userData.get("institution_id")).longValue() : null;
+            
+            System.out.println("UserRepository.findByEmail - Mapped user: id=" + id + ", firstName=" + firstName + 
+                              ", lastName=" + lastName + ", roleId=" + roleId + ", roleName=" + roleName + 
+                              ", status=" + status + ", emailVerified=" + emailVerified);
+            
+            // Crear usuario con datos básicos
+            User user = new User(
+                id, firstName, lastName, email,
+                roleId, institutionId, status, emailVerified
+            );
+            
+            // Establecer password si está presente
+            if (password != null) {
+                user.setPassword(password);
+            }
+            
+            // Establecer datos adicionales si están presentes
+            if (userData.get("last_login_at") != null) {
+                user.setLastLoginAt((Timestamp) userData.get("last_login_at"));
+            }
+            
+            if (userData.get("created_at") != null) {
+                user.setCreatedAt((Timestamp) userData.get("created_at"));
+            }
+            
+            if (userData.get("updated_at") != null) {
+                user.setUpdatedAt((Timestamp) userData.get("updated_at"));
+            }
+            
+            if (userData.get("profile_picture_url") != null) {
+                user.setProfilePictureUrl((String) userData.get("profile_picture_url"));
+            }
+            
+            if (userData.get("last_login_ip") != null) {
+                user.setLastLoginIp((String) userData.get("last_login_ip"));
+            }
+            
+            // Establecer el rol si está presente el nombre del rol
+            if (roleName != null) {
+                Role role = new Role();
+                role.setId(roleId);
+                role.setName(roleName);
+                user.setRole(role);
+            }
+            
+            System.out.println("UserRepository.findByEmail - Successfully created User object, returning");
+            return Optional.of(user);
             
         } catch (Exception e) {
             System.out.println("UserRepository.findByEmail - Exception occurred: " + e.getMessage());
@@ -425,8 +441,8 @@ public class UserRepositoryImpl implements UserRepository {
             rs.getString("email"),
             rs.getString("password"),
             rs.getString("profile_picture_url"),
-            rs.getBoolean("status"),
-            rs.getBoolean("email_verified"),
+            DatabaseUtils.safeToBoolean(rs.getObject("status")),
+            DatabaseUtils.safeToBoolean(rs.getObject("email_verified")),
             rs.getString("email_verification_token"),
             rs.getTimestamp("email_verification_expires_at"),
             rs.getString("password_reset_token"),
@@ -452,8 +468,8 @@ public class UserRepositoryImpl implements UserRepository {
             rs.getString("password"),
             rs.getByte("role_id"),
             rs.getLong("institution_id"),
-            rs.getBoolean("status"),
-            rs.getBoolean("email_verified"),
+            DatabaseUtils.safeToBoolean(rs.getObject("status")),
+            DatabaseUtils.safeToBoolean(rs.getObject("email_verified")),
             rs.getInt("failed_login_attempts"),
             rs.getTimestamp("account_locked_until"),
             rs.getTimestamp("last_login_at"),
@@ -471,8 +487,8 @@ public class UserRepositoryImpl implements UserRepository {
         String email = (String) userData.get("email");
         Byte roleId = ((Number) userData.get("role_id")).byteValue();
         Long institutionId = ((Number) userData.get("institution_id")).longValue();
-        Boolean status = (Boolean) userData.get("status");
-        Boolean emailVerified = (Boolean) userData.get("email_verified");
+        Boolean status = DatabaseUtils.safeToBoolean(userData.get("status"));
+        Boolean emailVerified = DatabaseUtils.safeToBoolean(userData.get("email_verified"));
         
         // Crear usuario con constructor básico
         User user = new User(

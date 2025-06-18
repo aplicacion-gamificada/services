@@ -19,6 +19,7 @@ import com.gamified.application.auth.repository.core.InstitutionRepository;
 import com.gamified.application.auth.repository.core.RoleRepository;
 import com.gamified.application.auth.repository.core.UserRepository;
 import com.gamified.application.auth.repository.interfaces.Result;
+import com.gamified.application.auth.util.DatabaseUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -481,8 +482,8 @@ public class UserRegistrationServiceImpl implements UserRegistrationService {
                                 rs.getString("email"),
                                 rs.getString("password"),
                                 rs.getString("profile_picture_url"),
-                                rs.getBoolean("status"),
-                                rs.getBoolean("email_verified"),
+                                DatabaseUtils.safeToBoolean(rs.getObject("status")), // 🔧 CORREGIDO
+                                DatabaseUtils.safeToBoolean(rs.getObject("email_verified")), // 🔧 CORREGIDO
                                 rs.getString("email_verification_token"),
                                 rs.getTimestamp("email_verification_expires_at"),
                                 rs.getString("password_reset_token"),

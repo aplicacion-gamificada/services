@@ -2,6 +2,7 @@ package com.gamified.application.auth.repository.core;
 
 import com.gamified.application.auth.entity.core.Institution;
 import com.gamified.application.auth.repository.interfaces.Result;
+import com.gamified.application.auth.util.DatabaseUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
@@ -11,12 +12,7 @@ import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
-import java.sql.Timestamp;
-import java.sql.Types;
+import java.sql.*;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -123,23 +119,8 @@ public class InstitutionRepositoryImpl implements InstitutionRepository {
                 institution.setLogoUrl((String) data.get("logo_url"));
             }
             
-            // Mapeo seguro del estado
-            Object statusObj = data.get("status");
-            if (statusObj != null) {
-                if (statusObj instanceof Boolean) {
-                    institution.setStatus((Boolean) statusObj);
-                } else if (statusObj instanceof Number) {
-                    // SQL Server puede devolver 1/0 en lugar de true/false
-                    institution.setStatus(((Number) statusObj).intValue() == 1);
-                } else {
-                    // Última opción: convertir a string y evaluar
-                    String statusStr = statusObj.toString();
-                    institution.setStatus("1".equals(statusStr) || "true".equalsIgnoreCase(statusStr));
-                }
-            } else {
-                // Valor predeterminado
-                institution.setStatus(true);
-            }
+            // Mapeo seguro del estado usando DatabaseUtils
+            institution.setStatus(DatabaseUtils.safeToBoolean(data.get("status"), true)); // 🔧 SIMPLIFICADO y CORREGIDO
             
             // Mapeo seguro de fechas
             if (data.get("created_at") != null) {
@@ -452,7 +433,7 @@ public class InstitutionRepositoryImpl implements InstitutionRepository {
             rs.getString("email"),
             rs.getString("website"),
             rs.getString("logo_url"),
-            rs.getBoolean("status")
+            DatabaseUtils.safeToBoolean(rs.getObject("status")) // 🔧 CORREGIDO
         );
     }
 } 

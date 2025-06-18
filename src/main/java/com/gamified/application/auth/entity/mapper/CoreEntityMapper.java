@@ -10,6 +10,7 @@ import com.gamified.application.auth.entity.enums.ActionType;
 import com.gamified.application.auth.entity.security.EmailVerification;
 import com.gamified.application.auth.entity.security.PasswordHistory;
 import com.gamified.application.auth.entity.security.RefreshToken;
+import com.gamified.application.auth.util.DatabaseUtils;
 import org.springframework.jdbc.core.RowMapper;
 
 import java.sql.ResultSet;
@@ -30,8 +31,8 @@ public interface CoreEntityMapper {
             rs.getString("email"),
             rs.getString("password"),
             rs.getString("profile_picture_url"),
-            rs.getBoolean("status"),
-            rs.getBoolean("email_verified"), // Assuming this field exists based on User entity
+            DatabaseUtils.safeToBoolean(rs.getObject("status")), // 🔧 CORREGIDO
+            DatabaseUtils.safeToBoolean(rs.getObject("email_verified")), // 🔧 CORREGIDO
             rs.getString("email_verification_token"),
             rs.getTimestamp("email_verification_expires_at"),
             rs.getString("password_reset_token"),
@@ -69,7 +70,7 @@ public interface CoreEntityMapper {
         institution.setEmail(rs.getString("email"));
         institution.setWebsite(rs.getString("website"));
         institution.setLogoUrl(rs.getString("logo_url"));
-        institution.setStatus(rs.getBoolean("status"));
+        institution.setStatus(DatabaseUtils.safeToBoolean(rs.getObject("status"))); // 🔧 CORREGIDO
         institution.setCreatedAt(rs.getTimestamp("created_at").toLocalDateTime());
         institution.setUpdatedAt(rs.getTimestamp("updated_at").toLocalDateTime());
         return institution;
@@ -86,8 +87,8 @@ public interface CoreEntityMapper {
                 rs.getString("email"),
                 rs.getByte("role_id"),
                 rs.getLong("institution_id"),
-                rs.getBoolean("status"),
-                rs.getBoolean("email_verified")
+                DatabaseUtils.safeToBoolean(rs.getObject("status")), // 🔧 CORREGIDO
+                DatabaseUtils.safeToBoolean(rs.getObject("email_verified")) // 🔧 CORREGIDO
         );
     }
 
@@ -103,8 +104,8 @@ public interface CoreEntityMapper {
                 rs.getString("password"),
                 rs.getByte("role_id"),
                 rs.getLong("institution_id"),
-                rs.getBoolean("status"),
-                rs.getBoolean("email_verified"),
+                DatabaseUtils.safeToBoolean(rs.getObject("status")), // 🔧 CORREGIDO
+                DatabaseUtils.safeToBoolean(rs.getObject("email_verified")), // 🔧 CORREGIDO
                 getNullableInt(rs, "failed_login_attempts"),
                 toTimestamp(getLocalDateTime(rs, "account_locked_until")),
                 toTimestamp(getLocalDateTime(rs, "last_login_at")),
@@ -123,8 +124,8 @@ public interface CoreEntityMapper {
                 rs.getString("email"),
                 rs.getString("password"),
                 rs.getString("profile_picture_url"),
-                rs.getBoolean("status"),
-                rs.getBoolean("email_verified"),
+                DatabaseUtils.safeToBoolean(rs.getObject("status")), // 🔧 CORREGIDO
+                DatabaseUtils.safeToBoolean(rs.getObject("email_verified")), // 🔧 CORREGIDO
                 rs.getString("email_verification_token"),
                 toTimestamp(getLocalDateTime(rs, "email_verification_expires_at")),
                 rs.getString("password_reset_token"),
@@ -172,7 +173,7 @@ public interface CoreEntityMapper {
             institution.setEmail(rs.getString("institution_email"));
             institution.setWebsite(rs.getString("institution_website"));
             institution.setLogoUrl(rs.getString("institution_logo_url"));
-            institution.setStatus(rs.getBoolean("institution_status"));
+            institution.setStatus(DatabaseUtils.safeToBoolean(rs.getObject("institution_status"))); // 🔧 CORREGIDO
             institution.setCreatedAt(getLocalDateTime(rs, "institution_created_at"));
             institution.setUpdatedAt(getLocalDateTime(rs, "institution_updated_at"));
             user.setInstitution(institution);
@@ -203,7 +204,7 @@ public interface CoreEntityMapper {
                 rs.getString("name"),
                 rs.getString("email"),
                 rs.getString("phone"),
-                rs.getBoolean("status")
+                DatabaseUtils.safeToBoolean(rs.getObject("status")) // 🔧 CORREGIDO
         );
     }
 
@@ -224,7 +225,7 @@ public interface CoreEntityMapper {
         institution.setEmail(rs.getString("email"));
         institution.setWebsite(rs.getString("website"));
         institution.setLogoUrl(rs.getString("logo_url"));
-        institution.setStatus(rs.getBoolean("status"));
+        institution.setStatus(DatabaseUtils.safeToBoolean(rs.getObject("status"))); // 🔧 CORREGIDO
         institution.setCreatedAt(getLocalDateTime(rs, "created_at"));
         institution.setUpdatedAt(getLocalDateTime(rs, "updated_at"));
         return institution;
@@ -240,7 +241,7 @@ public interface CoreEntityMapper {
                 .loginTime(getLocalDateTime(rs, "login_time"))
                 .ipAddress(rs.getString("ip_address"))
                 .userAgent(rs.getString("user_agent"))
-                .success(rs.getBoolean("success"))
+                .success(DatabaseUtils.safeToBoolean(rs.getObject("success"))) // 🔧 CORREGIDO
                 .failureReason(rs.getString("failure_reason"))
                 .browser(rs.getString("browser"))
                 .operatingSystem(rs.getString("operating_system"))
@@ -269,7 +270,7 @@ public interface CoreEntityMapper {
                 .description(rs.getString("description"))
                 .requestId(rs.getString("request_id"))
                 .sessionId(rs.getString("session_id"))
-                .isSensitive(rs.getBoolean("is_sensitive"))
+                .isSensitive(DatabaseUtils.safeToBoolean(rs.getObject("is_sensitive"))) // 🔧 CORREGIDO
                 .build();
     }
 
@@ -282,7 +283,7 @@ public interface CoreEntityMapper {
                 .token(rs.getString("token"))
                 .userId(rs.getLong("user_id"))
                 .expiresAt(toTimestamp(getLocalDateTime(rs, "expires_at")))
-                .isRevoked(rs.getBoolean("is_revoked"))
+                .isRevoked(DatabaseUtils.safeToBoolean(rs.getObject("is_revoked"))) // 🔧 CORREGIDO
                 .revokedAt(getLocalDateTime(rs, "revoked_at"))
                 .revokedReason(rs.getString("revoked_reason"))
                 .createdAt(toTimestamp(getLocalDateTime(rs, "created_at")))
@@ -303,7 +304,7 @@ public interface CoreEntityMapper {
                 rs.getLong("user_id"),
                 rs.getString("password"),
                 toTimestamp(getLocalDateTime(rs, "created_at")), // Assuming 'created_at' in DB maps to 'changedAt' in entity
-                rs.getBoolean("changed_by_admin"),
+                DatabaseUtils.safeToBoolean(rs.getObject("changed_by_admin")), // 🔧 CORREGIDO
                 rs.getString("ip_address"),
                 rs.getString("user_agent")
         );
@@ -319,7 +320,7 @@ public interface CoreEntityMapper {
                 rs.getString("email"),
                 rs.getString("verification_token"),
                 toTimestamp(getLocalDateTime(rs, "expires_at")),
-                rs.getBoolean("is_verified"),
+                DatabaseUtils.safeToBoolean(rs.getObject("is_verified")), // 🔧 CORREGIDO
                 toTimestamp(getLocalDateTime(rs, "verified_at")),
                 rs.getInt("attempt_count"),
                 toTimestamp(getLocalDateTime(rs, "last_attempt_at")),
