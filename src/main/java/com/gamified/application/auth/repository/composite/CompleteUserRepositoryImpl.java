@@ -766,14 +766,112 @@ public class CompleteUserRepositoryImpl implements CompleteUserRepository {
 
     @Override
     public Optional<CompleteStudent> findCompleteStudentByUsername(String username) {
-        // TODO: Implementar búsqueda de estudiante por nombre de usuario
-        return Optional.empty();
+        try {
+            // 1. Buscar el perfil de estudiante por username
+            String profileSql = "SELECT * FROM student_profile WHERE username = ?";
+            
+            List<StudentProfile> profiles = jdbcTemplate.query(profileSql, new Object[]{username}, (rs, rowNum) -> {
+                StudentProfile profile = new StudentProfile();
+                profile.setId(rs.getLong("id"));
+                profile.setUserId(rs.getLong("user_id"));
+                profile.setGuardianProfileId(rs.getLong("guardian_profile_id"));
+                profile.setUsername(rs.getString("username"));
+                profile.setBirthDate(rs.getDate("birth_date"));
+                profile.setPointsAmount(rs.getInt("points_amount"));
+                profile.setCreatedAt(rs.getTimestamp("created_at"));
+                profile.setUpdatedAt(rs.getTimestamp("updated_at"));
+                return profile;
+            });
+            
+            if (profiles.isEmpty()) {
+                return Optional.empty();
+            }
+            
+            StudentProfile profile = profiles.get(0);
+            
+            // 2. Buscar el usuario asociado
+            String userSql = "SELECT u.*, r.name as role_name, i.name as institution_name " +
+                             "FROM [user] u " +
+                             "JOIN role r ON u.role_id = r.id " +
+                             "JOIN institution i ON u.institution_id = i.id " +
+                             "WHERE u.id = ?";
+            
+            List<User> users = jdbcTemplate.query(userSql, new Object[]{profile.getUserId()}, (rs, rowNum) -> {
+                User user = mapUserFromResultSet(rs);
+                // Establecer objetos relacionados
+                Role role = new Role();
+                role.setId(user.getRoleId());
+                role.setName(rs.getString("role_name"));
+                user.setRole(role);
+                
+                Institution institution = new Institution();
+                institution.setId(user.getInstitutionId());
+                institution.setName(rs.getString("institution_name"));
+                user.setInstitution(institution);
+                
+                return user;
+            });
+            
+            if (users.isEmpty()) {
+                return Optional.empty();
+            }
+            
+            User user = users.get(0);
+            
+            // 3. Crear y retornar el objeto completo
+            CompleteStudent completeStudent = new CompleteStudent(
+                user.getId(), user.getRoleId(), user.getInstitutionId(),
+                user.getFirstName(), user.getLastName(), user.getEmail(),
+                user.getPassword(), user.getProfilePictureUrl(),
+                user.getCreatedAt(), user.getUpdatedAt(), user.getStatus(),
+                user.isEmailVerified(), null, null,
+                null, null, user.getLastLoginAt(),
+                user.getLastLoginIp(), 0, null,
+                profile.getId(), profile.getUserId(), profile.getGuardianProfileId(),
+                profile.getUsername(), profile.getBirthDate(), profile.getPointsAmount(),
+                profile.getCreatedAt(), profile.getUpdatedAt(),
+                user.getRole(), user.getInstitution()
+            );
+            
+            return Optional.of(completeStudent);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return Optional.empty();
+        }
     }
 
     @Override
     public Optional<Object> findCompleteUserByEmail(String email) {
         // TODO: Implementar búsqueda de usuario por email
-        return Optional.empty();
+        String userSql = "SELECT u.*, r.name as role_name, i.name as institution_name " +
+                         "FROM [user] u " +
+                         "JOIN role r ON u.role_id = r.id " +
+                         "JOIN institution i ON u.institution_id = i.id " +
+                         "WHERE u.email = ?";
+
+        List<User> users = jdbcTemplate.query(userSql, new Object[]{email}, (rs, rowNum) -> {
+            User user = mapUserFromResultSet(rs);
+            // Establecer objetos relacionados
+            Role role = new Role();
+            role.setId(user.getRoleId());
+            role.setName(rs.getString("role_name"));
+            user.setRole(role);
+
+            Institution institution = new Institution();
+            institution.setId(user.getInstitutionId());
+            institution.setName(rs.getString("institution_name"));
+            user.setInstitution(institution);
+
+            return user;
+        });
+
+        if (users.isEmpty()) {
+            return Optional.empty();
+        }
+
+        User user = users.get(0);
+        
+        return Optional.of(user);
     }
 
     @Override

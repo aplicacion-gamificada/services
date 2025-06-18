@@ -157,4 +157,22 @@ public interface SecurityAuditService {
      * @return Resumen de actividad sospechosa
      */
     AuditResponseDto.SuspiciousActivitySummaryDto getSuspiciousActivity(LocalDateTime startDate, LocalDateTime endDate);
+
+    /**
+     * Registra un inicio de sesión exitoso
+     * @param userId ID del usuario
+     * @param ipAddress Dirección IP del cliente
+     * @param userAgent User-Agent del cliente
+     * @return Resultado con el registro creado
+     */
+    Result<AuditLog> recordSuccessfulLogin(Long userId, String ipAddress, String userAgent);
+
+    /**
+     * Registra un intento de login fallido
+     * @param userId ID del usuario
+     * @param ipAddress Dirección IP del cliente
+     * @param failureReason Razón del fallo
+     * @return Resultado con el registro creado
+     */
+    Result<AuditLog> recordFailedLogin(Long userId, String ipAddress, String failureReason);
 } 

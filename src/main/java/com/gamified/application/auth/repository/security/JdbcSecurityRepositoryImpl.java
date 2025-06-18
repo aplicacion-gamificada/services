@@ -282,4 +282,15 @@ public class JdbcSecurityRepositoryImpl implements SecurityRepository {
         // Implementación temporal
         return false;
     }
+
+    @Override
+    public void updateRefreshTokenLastUsed(Long tokenId) {
+        try {
+            // Implementación temporal - en una implementación real actualizaría el campo last_used_at
+            // String sql = "UPDATE refresh_token SET last_used_at = ? WHERE id = ?";
+            // jdbcTemplate.update(sql, new Timestamp(System.currentTimeMillis()), tokenId);
+        } catch (Exception e) {
+            // Log error in real implementation
+        }
+    }
 } 

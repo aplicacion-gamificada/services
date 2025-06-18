@@ -96,4 +96,10 @@ public interface SecurityRepository {
      * @return true si el password ya fue usado
      */
     boolean isPasswordPreviouslyUsed(Long userId, String passwordHash);
+    
+    /**
+     * Actualiza el último uso de un refresh token
+     * @param tokenId ID del token
+     */
+    void updateRefreshTokenLastUsed(Long tokenId);
 } 

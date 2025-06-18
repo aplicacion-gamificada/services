@@ -148,6 +148,20 @@ public class SecurityAuditServiceImpl implements SecurityAuditService {
                 .build();
     }
     
+    @Override
+    public Result<AuditLog> recordSuccessfulLogin(Long userId, String ipAddress, String userAgent) {
+        // Implementación simple para registro de login exitoso
+        logLoginAttempt(userId, true, ipAddress, userAgent, null);
+        return Result.success(new AuditLog());
+    }
+    
+    @Override
+    public Result<AuditLog> recordFailedLogin(Long userId, String ipAddress, String failureReason) {
+        // Implementación simple para registro de login fallido
+        logLoginAttempt(userId, false, ipAddress, "Unknown", failureReason);
+        return Result.success(new AuditLog());
+    }
+    
     // Métodos de mapeo auxiliares
     
     private AuditResponseDto.LoginHistoryResponseDto mapToLoginHistoryResponseDto(LoginHistory history) {

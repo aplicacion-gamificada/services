@@ -173,7 +173,7 @@ public class UserRegistrationServiceImpl implements UserRegistrationService {
             now, // createdAt
             now, // updatedAt
             true, // status
-            false, // emailVerified
+            true, // emailVerified - Cambiado a true para permitir login inmediato
             null, // emailVerificationToken
             null, // emailVerificationExpiresAt
             null, // passwordResetToken
@@ -184,7 +184,7 @@ public class UserRegistrationServiceImpl implements UserRegistrationService {
             null, // accountLockedUntil
             null, // teacherProfileId (se asignará al guardar)
             null, // teacherUserId (se asignará al guardar)
-            false, // teacherEmailVerified - inicializado en false
+            true, // teacherEmailVerified - Cambiado a true para consistencia
             teacherRequest.getStemAreaId(),
             now, // teacherCreatedAt
             now, // teacherUpdatedAt

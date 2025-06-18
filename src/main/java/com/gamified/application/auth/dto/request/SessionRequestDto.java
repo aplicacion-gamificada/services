@@ -40,6 +40,10 @@ public class SessionRequestDto {
         private Boolean logoutAllDevices = false; // true = cerrar sesión en todos los dispositivos
 
         private String deviceInfo;
+
+        public Boolean isLogoutAllDevices() {
+            return this.logoutAllDevices;
+        }
     }
 
     /**

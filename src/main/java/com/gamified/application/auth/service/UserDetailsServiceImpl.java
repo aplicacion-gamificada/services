@@ -1,6 +1,7 @@
 package com.gamified.application.auth.service;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.User;
@@ -13,40 +14,100 @@ import java.util.Collections;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class UserDetailsServiceImpl implements UserDetailsService {
 
     private final JdbcTemplate jdbcTemplate;
 
     @Override
-    public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
+    public UserDetails loadUserByUsername(String identifier) throws UsernameNotFoundException {
+        log.info("Loading user by identifier: {}", identifier);
+        
         try {
-            // Query to get user details by username
-            String sql = "SELECT u.id, u.username, u.password, u.is_active, u.email_verified, u.status, r.name as role_name " +
+            // Primero intentar encontrar por email (para teachers/guardians)
+            String sql = "SELECT u.id, u.email, u.password, u.is_active, u.email_verified, u.status, r.name as role_name " +
                     "FROM [user] u " +
                     "JOIN role r ON u.role_id = r.id " +
-                    "WHERE u.username = ? AND u.is_active = 1";
+                    "WHERE u.email = ? AND u.is_active = 1";
 
-            return jdbcTemplate.queryForObject(sql, (rs, rowNum) -> {
-                boolean enabled = rs.getBoolean("is_active") && 
-                                  rs.getBoolean("email_verified") && 
-                                  rs.getBoolean("status");
+            try {
+                UserDetails userDetails = jdbcTemplate.queryForObject(sql, (rs, rowNum) -> {
+                    String roleName = rs.getString("role_name");
+                    boolean isActive = rs.getBoolean("is_active");
+                    boolean emailVerified = rs.getBoolean("email_verified");
+                    boolean status = rs.getBoolean("status");
+                    
+                    log.info("Found user by email - Role: {}, Active: {}, EmailVerified: {}, Status: {}", 
+                            roleName, isActive, emailVerified, status);
+                    
+                    // Para teachers y guardians, no requerir email_verified inicialmente
+                    // Para estudiantes, seguir la lógica original (aunque usan username)
+                    boolean enabled;
+                    if ("TEACHER".equals(roleName) || "GUARDIAN".equals(roleName)) {
+                        enabled = isActive && status;
+                        log.info("Teacher/Guardian - Enabled: {} (Active: {}, Status: {})", enabled, isActive, status);
+                    } else {
+                        enabled = isActive && emailVerified && status;
+                        log.info("Other role - Enabled: {} (Active: {}, EmailVerified: {}, Status: {})", 
+                                enabled, isActive, emailVerified, status);
+                    }
+                    
+                    Long userId = rs.getLong("id");
+                    String password = rs.getString("password");
+                    
+                    log.info("Creating UserDetails for userId: {}, enabled: {}", userId, enabled);
+                    
+                    return new User(
+                            String.valueOf(userId),
+                            password,
+                            enabled,
+                            true,
+                            true,
+                            status,
+                            Collections.singleton(new SimpleGrantedAuthority("ROLE_" + roleName))
+                    );
+                }, identifier);
                 
-                Long userId = rs.getLong("id");
+                log.info("Successfully loaded user details for email: {}", identifier);
+                return userDetails;
                 
-                // Crear un objeto UserDetails personalizado que use el ID como nombre de usuario
-                return new User(
-                        String.valueOf(userId),  // Usar el ID como nombre de usuario para autenticación
-                        rs.getString("password"),
-                        enabled,
-                        true,  // account non-expired
-                        true,  // credentials non-expired
-                        rs.getBoolean("status"),  // account non-locked
-                        Collections.singleton(new SimpleGrantedAuthority("ROLE_" + rs.getString("role_name")))
-                );
-            }, username);
+            } catch (Exception e) {
+                log.info("User not found by email, trying username for student: {}", identifier);
+                
+                // Si no se encuentra por email, intentar por username (para estudiantes)
+                String studentSql = "SELECT u.id, u.email, u.password, u.is_active, u.email_verified, u.status, r.name as role_name " +
+                        "FROM [user] u " +
+                        "JOIN role r ON u.role_id = r.id " +
+                        "JOIN student_profile sp ON u.id = sp.user_id " +
+                        "WHERE sp.username = ? AND u.is_active = 1";
+
+                UserDetails studentDetails = jdbcTemplate.queryForObject(studentSql, (rs, rowNum) -> {
+                    // Para estudiantes, no requerir email_verified
+                    boolean enabled = rs.getBoolean("is_active") && rs.getBoolean("status");
+                    
+                    Long userId = rs.getLong("id");
+                    String roleName = rs.getString("role_name");
+                    
+                    log.info("Found student by username - UserId: {}, Enabled: {}, Role: {}", userId, enabled, roleName);
+                    
+                    return new User(
+                            String.valueOf(userId),
+                            rs.getString("password"),
+                            enabled,
+                            true,
+                            true,
+                            rs.getBoolean("status"),
+                            Collections.singleton(new SimpleGrantedAuthority("ROLE_" + roleName))
+                    );
+                }, identifier);
+                
+                log.info("Successfully loaded student details for username: {}", identifier);
+                return studentDetails;
+            }
 
         } catch (Exception e) {
-            throw new UsernameNotFoundException("User not found with username: " + username);
+            log.error("Failed to load user with identifier: {} - Error: {}", identifier, e.getMessage());
+            throw new UsernameNotFoundException("User not found with identifier: " + identifier);
         }
     }
 } 
