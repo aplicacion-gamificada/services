@@ -6,7 +6,7 @@ const http = require('http');
 // =============================================================================
 
 // NOTA: La URL completa será BASE_URL + ENDPOINT
-const BASE_URL = "http://localhost:8080/api";
+const BASE_URL = "http://localhost:8080";
 
 // URLs de base de datos (para referencia, no se usan en tests HTTP)
 const TEST_DATABASE_URL = "jdbc:sqlserver://localhost:1433;database=numerino_test;encrypt=false;trustServerCertificate=true;";

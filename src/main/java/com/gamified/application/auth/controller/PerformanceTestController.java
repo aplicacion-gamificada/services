@@ -15,7 +15,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/perf-test")
+@RequestMapping("/perf-test")
 @RequiredArgsConstructor
 @Slf4j
 public class PerformanceTestController {

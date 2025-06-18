@@ -3,6 +3,7 @@ package com.gamified.application.auth.controller;
 import com.gamified.application.auth.dto.request.UserRequestDto;
 import com.gamified.application.auth.dto.response.CommonResponseDto;
 import com.gamified.application.auth.dto.response.UserResponseDto;
+import com.gamified.application.auth.service.auth.TokenService;
 import com.gamified.application.auth.service.user.UserProfileService;
 import com.gamified.application.auth.service.user.UserRegistrationService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -19,20 +20,22 @@ import java.util.List;
  * Controlador para operaciones relacionadas con usuarios
  */
 @RestController
-@RequestMapping("/api/users")
+@RequestMapping("/users")
 @RequiredArgsConstructor
 public class UserController {
 
     private final UserProfileService userProfileService;
     private final UserRegistrationService userRegistrationService;
+    private final TokenService tokenService;
 
     /**
      * Obtiene el perfil del usuario actual
      * @param authentication Datos de autenticación del usuario
+     * @param request Request HTTP para extraer el token
      * @return Perfil del usuario según su rol
      */
     @GetMapping("/profile")
-    public ResponseEntity<?> getCurrentUserProfile(Authentication authentication) {
+    public ResponseEntity<?> getCurrentUserProfile(Authentication authentication, HttpServletRequest request) {
         try {
             if (authentication == null || !authentication.isAuthenticated()) {
                 return ResponseEntity.status(401).body(
@@ -40,7 +43,7 @@ public class UserController {
                 );
             }
             
-            Long userId = getUserIdFromAuthentication(authentication);
+            Long userId = getUserIdFromToken(request);
             String userRole = authentication.getAuthorities().iterator().next().getAuthority();
             
             if (userRole.equals("ROLE_STUDENT")) {
@@ -247,7 +250,27 @@ public class UserController {
     }
     
     /**
-     * Extrae el ID de usuario de la autenticación
+     * Extrae el ID de usuario del token JWT en la request
+     * @param request Request HTTP
+     * @return ID del usuario
+     */
+    private Long getUserIdFromToken(HttpServletRequest request) {
+        String authHeader = request.getHeader("Authorization");
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            throw new IllegalStateException("Token de autorización no encontrado");
+        }
+        
+        String token = authHeader.substring(7);
+        Long userId = tokenService.extractUserId(token);
+        if (userId == null) {
+            throw new IllegalStateException("No se pudo extraer el ID de usuario del token");
+        }
+        
+        return userId;
+    }
+    
+    /**
+     * Extrae el ID de usuario de la autenticación (método legacy)
      * @param authentication Autenticación actual
      * @return ID del usuario
      */

@@ -42,9 +42,6 @@ public class SecurityConfig {
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                .anyRequest().permitAll()
-            /*
-                // Configuración real para producción
                 // Public endpoints
                 .requestMatchers("/auth/**").permitAll()
                 .requestMatchers("/register/**").permitAll()
@@ -54,7 +51,6 @@ public class SecurityConfig {
                 .requestMatchers("/swagger-ui.html").permitAll()
                 // Protected endpoints
                 .anyRequest().authenticated()
-            */
             )
             .authenticationProvider(authenticationProvider())
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);

@@ -24,7 +24,7 @@ import java.util.Map;
  * Controlador para operaciones de autenticación
  */
 @RestController
-@RequestMapping("/api/auth")
+@RequestMapping("/auth")
 @RequiredArgsConstructor
 @Tag(name = "Authentication", description = "Authentication API")
 public class AuthController {

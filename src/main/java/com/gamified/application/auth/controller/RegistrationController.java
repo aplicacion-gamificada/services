@@ -29,7 +29,7 @@ import com.gamified.application.auth.exception.EmailAlreadyExistsException;
  * Controlador para operaciones de registro de usuarios
  */
 @RestController
-@RequestMapping("/api/register")
+@RequestMapping("/register")
 @RequiredArgsConstructor
 public class RegistrationController {
 

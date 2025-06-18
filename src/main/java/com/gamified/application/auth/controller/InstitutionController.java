@@ -18,7 +18,7 @@ import java.util.List;
  * Controlador para operaciones relacionadas con instituciones
  */
 @RestController
-@RequestMapping("/api/institutions")
+@RequestMapping("/institutions")
 @RequiredArgsConstructor
 @Slf4j
 public class InstitutionController {

@@ -5,7 +5,7 @@
 // =============================================================================
 
 // CONFIGURACIÓN - EDITAR SEGÚN SEA NECESARIO
-const BASE_URL = 'http://localhost:8080/api';
+const BASE_URL = 'http://localhost:8080';
 const TEST_DATABASE_URL = 'jdbc:sqlserver://localhost:1433;database=numerino_test;encrypt=false;trustServerCertificate=true;';
 
 // Colores para consola

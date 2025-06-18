@@ -1,5 +1,5 @@
 module.exports = {
-    BASE_URL: process.env.TEST_BASE_URL || "http://localhost:8080/api/api",
+    BASE_URL: process.env.TEST_BASE_URL || "http://localhost:8080",
     TIMEOUT: process.env.TEST_TIMEOUT || 60000,
     RETRIES: process.env.TEST_RETRIES || 2,
     INSTITUTION_ID: process.env.TEST_INSTITUTION_ID || 3,

@@ -18,7 +18,7 @@ import java.util.List;
  * Controlador para operaciones relacionadas con sesiones de usuario
  */
 @RestController
-@RequestMapping("/api/sessions")
+@RequestMapping("/sessions")
 @RequiredArgsConstructor
 public class SessionController {
 

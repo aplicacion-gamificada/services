@@ -17,7 +17,7 @@ import java.util.List;
  * Controlador para operaciones de auditoría de seguridad
  */
 @RestController
-@RequestMapping("/api/audit")
+@RequestMapping("/audit")
 @RequiredArgsConstructor
 public class AuditController {
 

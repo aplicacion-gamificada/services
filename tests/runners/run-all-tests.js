@@ -22,7 +22,7 @@ const colors = {
 
 // Configuración de tests
 const TEST_CONFIG = {
-    BASE_URL: "http://localhost:8080/api",
+    BASE_URL: "http://localhost:8080",
     FALLBACK_INSTITUTION_ID: 3,
     MAX_RETRIES: 2,
     TIMEOUT: 60000

@@ -61,7 +61,7 @@ public class UserDetailsServiceImpl implements UserDetailsService {
                     log.info("Creating UserDetails for userId: {}, enabled: {}", userId, enabled);
                     
                     return new User(
-                            String.valueOf(userId),
+                            rs.getString("email"),  // Usar email como username para consistency con JWT
                             password,
                             enabled,
                             true,
@@ -96,7 +96,7 @@ public class UserDetailsServiceImpl implements UserDetailsService {
                     log.info("Found student by username - UserId: {}, Enabled: {}, Role: {}", userId, enabled, roleName);
                     
                     return new User(
-                            String.valueOf(userId),
+                            rs.getString("email"),  // Usar email como username para consistency con JWT
                             rs.getString("password"),
                             enabled,
                             true,
