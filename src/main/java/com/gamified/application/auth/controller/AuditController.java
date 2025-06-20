@@ -19,11 +19,11 @@ import java.util.List;
  */
 @RestController
 @RequestMapping("/audit")
-@RequiredArgsConstructor@Tag(
+@RequiredArgsConstructor
+@Tag(
         name = "Audit ",
         description = "Provides endpoints for retrieving login history, user activity, and audit logs for both users and administrators."
 )
-    
 public class AuditController {
 
     private final SecurityAuditService securityAuditService;

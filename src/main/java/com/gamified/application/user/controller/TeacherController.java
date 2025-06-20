@@ -84,14 +84,14 @@ public class TeacherController {
     }
     
     /**
-     * Obtiene los estudiantes de un classroom específico del teacher
+     * Obtiene los estudiantes de un classroom específico del teacher con información completa
      * 
      * @param classroomId ID del classroom
      * @param authentication Datos de autenticación del teacher
      * @param request Request HTTP para extraer el token
-     * @return Lista de estudiantes del classroom
+     * @return Lista de estudiantes del classroom con información detallada y guardián
      */
-    @GetMapping("/classrooms/{classroomId}/students")
+    @GetMapping("/classrooms/{classroomId}/students-with-guardian")
     @PreAuthorize("hasRole('TEACHER')")
     public ResponseEntity<List<UserResponseDto.StudentWithGuardianDto>> getStudentsByClassroom(
             @PathVariable Long classroomId,
