@@ -1,9 +1,9 @@
 package com.gamified.application.auth.repository.core;
 
-import com.gamified.application.auth.entity.core.User;
-import com.gamified.application.auth.entity.core.Role;
-import com.gamified.application.auth.repository.interfaces.Result;
-import com.gamified.application.auth.util.DatabaseUtils;
+import com.gamified.application.user.model.entity.User;
+import com.gamified.application.shared.model.entity.Role;
+import com.gamified.application.shared.repository.Result;
+import com.gamified.application.shared.util.DatabaseUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
@@ -16,7 +16,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.sql.*;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;

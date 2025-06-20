@@ -1,6 +1,6 @@
 package com.gamified.application.auth.service;
 
-import com.gamified.application.auth.util.DatabaseUtils;
+import com.gamified.application.shared.util.DatabaseUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.JdbcTemplate;

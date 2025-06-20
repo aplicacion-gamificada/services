@@ -1,7 +1,7 @@
 package com.gamified.application.auth.service.security;
 
 import com.gamified.application.auth.entity.security.PasswordHistory;
-import com.gamified.application.auth.repository.interfaces.Result;
+import com.gamified.application.shared.repository.Result;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 

@@ -1,28 +1,17 @@
 package com.gamified.application.auth.repository.security;
 
-import com.gamified.application.auth.entity.audit.LoginHistory;
 import com.gamified.application.auth.entity.security.EmailVerification;
 import com.gamified.application.auth.entity.security.PasswordHistory;
 import com.gamified.application.auth.entity.security.RefreshToken;
-import com.gamified.application.auth.repository.interfaces.Result;
-import com.gamified.application.auth.util.DatabaseUtils;
+import com.gamified.application.shared.repository.Result;
+import com.gamified.application.shared.util.DatabaseUtils;
 import lombok.RequiredArgsConstructor;
-import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
-import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
-import org.springframework.jdbc.core.simple.SimpleJdbcCall;
-import org.springframework.jdbc.core.simple.SimpleJdbcInsert;
-import org.springframework.jdbc.support.GeneratedKeyHolder;
-import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Repository;
-import org.springframework.transaction.annotation.Transactional;
 
 import javax.sql.DataSource;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.util.*;

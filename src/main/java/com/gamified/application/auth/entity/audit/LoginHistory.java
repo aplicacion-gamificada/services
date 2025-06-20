@@ -1,7 +1,7 @@
 package com.gamified.application.auth.entity.audit;
 
 
-import com.gamified.application.auth.entity.core.User;
+import com.gamified.application.user.model.entity.User;
 import lombok.*;
 import java.time.LocalDateTime;
 

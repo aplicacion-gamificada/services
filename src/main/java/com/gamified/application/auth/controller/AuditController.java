@@ -1,7 +1,7 @@
 package com.gamified.application.auth.controller;
 
-import com.gamified.application.auth.dto.request.AuditRequestDto;
-import com.gamified.application.auth.dto.response.AuditResponseDto;
+import com.gamified.application.shared.model.dto.request.AuditRequestDto;
+import com.gamified.application.shared.model.dto.response.AuditResponseDto;
 import com.gamified.application.auth.service.audit.SecurityAuditService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;

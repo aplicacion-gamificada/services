@@ -3,7 +3,7 @@ package com.gamified.application.auth.repository.security;
 import com.gamified.application.auth.entity.security.EmailVerification;
 import com.gamified.application.auth.entity.security.PasswordHistory;
 import com.gamified.application.auth.entity.security.RefreshToken;
-import com.gamified.application.auth.repository.interfaces.Result;
+import com.gamified.application.shared.repository.Result;
 
 import java.util.List;
 import java.util.Optional;

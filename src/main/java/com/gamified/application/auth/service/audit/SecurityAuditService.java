@@ -1,10 +1,10 @@
 package com.gamified.application.auth.service.audit;
 
-import com.gamified.application.auth.dto.request.AuditRequestDto;
-import com.gamified.application.auth.dto.response.AuditResponseDto;
+import com.gamified.application.shared.model.dto.request.AuditRequestDto;
+import com.gamified.application.shared.model.dto.response.AuditResponseDto;
 import com.gamified.application.auth.entity.audit.AuditLog;
 import com.gamified.application.auth.entity.audit.LoginHistory;
-import com.gamified.application.auth.repository.interfaces.Result;
+import com.gamified.application.shared.repository.Result;
 
 import java.sql.Timestamp;
 import java.time.LocalDateTime;

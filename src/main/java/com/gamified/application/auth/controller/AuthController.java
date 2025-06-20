@@ -1,10 +1,10 @@
 package com.gamified.application.auth.controller;
 
-import com.gamified.application.auth.dto.request.AuthRequestDto;
-import com.gamified.application.auth.dto.request.SessionRequestDto;
-import com.gamified.application.auth.dto.response.AuthResponseDto;
-import com.gamified.application.auth.dto.response.CommonResponseDto;
-import com.gamified.application.auth.dto.response.SessionResponseDto;
+import com.gamified.application.shared.model.dto.request.AuthRequestDto;
+import com.gamified.application.shared.model.dto.request.SessionRequestDto;
+import com.gamified.application.shared.model.dto.response.AuthResponseDto;
+import com.gamified.application.shared.model.dto.response.CommonResponseDto;
+import com.gamified.application.shared.model.dto.response.SessionResponseDto;
 import com.gamified.application.auth.service.auth.AuthenticationService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -14,7 +14,6 @@ import org.springframework.web.bind.annotation.*;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.core.simple.SimpleJdbcCall;
 
 import javax.sql.DataSource;
 import java.util.HashMap;

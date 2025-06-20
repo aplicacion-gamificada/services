@@ -1,13 +1,10 @@
 package com.gamified.application.auth.controller;
 
-import com.gamified.application.auth.dto.request.UserRequestDto;
-import com.gamified.application.auth.dto.response.AuthResponseDto;
-import com.gamified.application.auth.dto.response.CommonResponseDto;
-import com.gamified.application.auth.dto.response.UserResponseDto;
-import com.gamified.application.auth.entity.core.User;
-import com.gamified.application.auth.entity.security.RefreshToken;
+import com.gamified.application.user.model.dto.request.UserRequestDto;
+import com.gamified.application.shared.model.dto.response.CommonResponseDto;
+import com.gamified.application.user.model.dto.response.UserResponseDto;
 import com.gamified.application.auth.service.auth.TokenService;
-import com.gamified.application.auth.service.user.UserRegistrationService;
+import com.gamified.application.user.service.UserRegistrationService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -21,9 +18,9 @@ import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 import java.nio.charset.StandardCharsets;
-import java.io.IOException;
+
 import org.springframework.http.HttpStatus;
-import com.gamified.application.auth.exception.EmailAlreadyExistsException;
+import com.gamified.application.shared.exception.EmailAlreadyExistsException;
 
 /**
  * Controlador para operaciones de registro de usuarios

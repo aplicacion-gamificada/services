@@ -1,8 +1,8 @@
 package com.gamified.application.auth.controller;
 
-import com.gamified.application.auth.dto.request.SessionRequestDto;
-import com.gamified.application.auth.dto.response.CommonResponseDto;
-import com.gamified.application.auth.dto.response.SessionResponseDto;
+import com.gamified.application.shared.model.dto.request.SessionRequestDto;
+import com.gamified.application.shared.model.dto.response.CommonResponseDto;
+import com.gamified.application.shared.model.dto.response.SessionResponseDto;
 import com.gamified.application.auth.service.auth.TokenService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;

@@ -2,9 +2,9 @@ package com.gamified.application.config;
 
 import com.gamified.application.auth.service.auth.AuthenticationService;
 import com.gamified.application.auth.service.auth.TokenService;
-import com.gamified.application.auth.service.user.UserProfileService;
-import com.gamified.application.auth.service.user.UserRegistrationService;
-import com.gamified.application.auth.service.core.InstitutionService;
+import com.gamified.application.user.service.UserProfileService;
+import com.gamified.application.user.service.UserRegistrationService;
+import com.gamified.application.institution.service.InstitutionService;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;

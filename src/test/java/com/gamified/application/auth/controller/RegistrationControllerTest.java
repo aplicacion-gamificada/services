@@ -1,11 +1,10 @@
 package com.gamified.application.auth.controller;
 
-import com.gamified.application.auth.dto.request.UserRequestDto;
-import com.gamified.application.auth.dto.response.CommonResponseDto;
-import com.gamified.application.auth.dto.response.UserResponseDto;
-import com.gamified.application.auth.exception.EmailAlreadyExistsException;
+import com.gamified.application.user.model.dto.request.UserRequestDto;
+import com.gamified.application.user.model.dto.response.UserResponseDto;
+import com.gamified.application.shared.exception.EmailAlreadyExistsException;
 import com.gamified.application.auth.service.auth.TokenService;
-import com.gamified.application.auth.service.user.UserRegistrationService;
+import com.gamified.application.user.service.UserRegistrationService;
 import com.gamified.application.config.TestConfig;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
@@ -30,7 +29,6 @@ import java.util.HashMap;
 import java.util.Map;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;

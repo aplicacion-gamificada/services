@@ -1,10 +1,10 @@
 package com.gamified.application.auth.service.auth;
 
-import com.gamified.application.auth.dto.request.AuthRequestDto;
-import com.gamified.application.auth.dto.response.AuthResponseDto;
-import com.gamified.application.auth.dto.response.CommonResponseDto;
-import com.gamified.application.auth.dto.request.SessionRequestDto;
-import com.gamified.application.auth.dto.response.SessionResponseDto;
+import com.gamified.application.shared.model.dto.request.AuthRequestDto;
+import com.gamified.application.shared.model.dto.response.AuthResponseDto;
+import com.gamified.application.shared.model.dto.response.CommonResponseDto;
+import com.gamified.application.shared.model.dto.request.SessionRequestDto;
+import com.gamified.application.shared.model.dto.response.SessionResponseDto;
 
 /**
  * Servicio para operaciones de autenticación de usuarios

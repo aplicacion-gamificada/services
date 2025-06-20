@@ -1,7 +1,7 @@
 package com.gamified.application.auth.repository.core;
 
-import com.gamified.application.auth.entity.core.Role;
-import com.gamified.application.auth.repository.interfaces.Result;
+import com.gamified.application.shared.model.entity.Role;
+import com.gamified.application.shared.repository.Result;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.support.GeneratedKeyHolder;

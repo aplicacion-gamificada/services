@@ -1,18 +1,18 @@
 package com.gamified.application.auth.service.auth;
 
-import com.gamified.application.auth.dto.request.AuthRequestDto;
-import com.gamified.application.auth.dto.response.AuthResponseDto;
-import com.gamified.application.auth.dto.response.CommonResponseDto;
-import com.gamified.application.auth.dto.request.SessionRequestDto;
-import com.gamified.application.auth.dto.response.SessionResponseDto;
-import com.gamified.application.auth.entity.core.User;
+import com.gamified.application.shared.model.dto.request.AuthRequestDto;
+import com.gamified.application.shared.model.dto.response.AuthResponseDto;
+import com.gamified.application.shared.model.dto.response.CommonResponseDto;
+import com.gamified.application.shared.model.dto.request.SessionRequestDto;
+import com.gamified.application.shared.model.dto.response.SessionResponseDto;
+import com.gamified.application.user.model.entity.User;
 import com.gamified.application.auth.entity.security.RefreshToken;
 import com.gamified.application.auth.repository.core.UserRepository;
-import com.gamified.application.auth.repository.composite.CompleteUserRepository;
+import com.gamified.application.user.repository.composite.CompleteUserRepository;
 import com.gamified.application.auth.repository.security.SecurityRepository;
 import com.gamified.application.auth.service.security.PasswordService;
 import com.gamified.application.auth.service.audit.SecurityAuditService;
-import jakarta.servlet.http.HttpServletRequest;
+import com.gamified.application.user.model.entity.composite.CompleteStudent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -135,14 +135,14 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     public AuthResponseDto.LoginResponseDto loginStudent(AuthRequestDto.StudentLoginRequestDto loginRequest) {
         try {
             // 1. Buscar estudiante por username
-            Optional<com.gamified.application.auth.entity.composite.CompleteStudent> studentOpt = 
+            Optional<CompleteStudent> studentOpt =
                 completeUserRepository.findCompleteStudentByUsername(loginRequest.getUsername());
                 
             if (studentOpt.isEmpty()) {
                 throw new BadCredentialsException("Estudiante no encontrado");
             }
             
-            com.gamified.application.auth.entity.composite.CompleteStudent student = studentOpt.get();
+            CompleteStudent student = studentOpt.get();
             User user = student.getUser();
             
             // 2. Verificar contraseña

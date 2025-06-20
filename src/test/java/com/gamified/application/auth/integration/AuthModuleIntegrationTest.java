@@ -1,9 +1,9 @@
 package com.gamified.application.auth.integration;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.gamified.application.auth.dto.request.AuthRequestDto;
-import com.gamified.application.auth.dto.request.InstitutionRequestDto;
-import com.gamified.application.auth.dto.request.UserRequestDto;
+import com.gamified.application.shared.model.dto.request.AuthRequestDto;
+import com.gamified.application.institution.model.dto.request.InstitutionRequestDto;
+import com.gamified.application.user.model.dto.request.UserRequestDto;
 import com.gamified.application.config.TestConfig;
 import com.gamified.application.config.TestSecurityConfig;
 import org.junit.jupiter.api.BeforeEach;

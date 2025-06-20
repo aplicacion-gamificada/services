@@ -1,22 +1,20 @@
 package com.gamified.application.auth.service.auth;
 
 import com.gamified.application.config.JwtConfig;
-import com.gamified.application.auth.dto.request.SessionRequestDto;
-import com.gamified.application.auth.dto.response.CommonResponseDto;
-import com.gamified.application.auth.dto.response.SessionResponseDto;
-import com.gamified.application.auth.entity.core.User;
+import com.gamified.application.shared.model.dto.request.SessionRequestDto;
+import com.gamified.application.shared.model.dto.response.CommonResponseDto;
+import com.gamified.application.shared.model.dto.response.SessionResponseDto;
+import com.gamified.application.user.model.entity.User;
 import com.gamified.application.auth.entity.security.RefreshToken;
-import com.gamified.application.auth.repository.interfaces.Result;
+import com.gamified.application.shared.repository.Result;
 import com.gamified.application.auth.repository.security.SecurityRepository;
 import io.jsonwebtoken.Claims;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.util.*;
-import java.util.stream.Collectors;
 
 /**
  * Implementación del servicio de tokens

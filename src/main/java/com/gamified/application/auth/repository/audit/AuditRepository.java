@@ -2,7 +2,7 @@ package com.gamified.application.auth.repository.audit;
 
 import com.gamified.application.auth.entity.audit.AuditLog;
 import com.gamified.application.auth.entity.audit.LoginHistory;
-import com.gamified.application.auth.repository.interfaces.Result;
+import com.gamified.application.shared.repository.Result;
 
 import java.sql.Timestamp;
 import java.util.List;

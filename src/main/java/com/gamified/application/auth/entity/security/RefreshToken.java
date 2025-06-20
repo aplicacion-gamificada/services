@@ -1,6 +1,6 @@
 package com.gamified.application.auth.entity.security;
 
-import com.gamified.application.auth.entity.core.User;
+import com.gamified.application.user.model.entity.User;
 import lombok.*;
 import java.time.LocalDateTime;
 import java.sql.Timestamp;

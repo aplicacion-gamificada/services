@@ -1,11 +1,11 @@
 package com.gamified.application.auth.controller;
 
-import com.gamified.application.auth.dto.request.AuthRequestDto;
-import com.gamified.application.auth.dto.request.SessionRequestDto;
-import com.gamified.application.auth.dto.response.AuthResponseDto;
-import com.gamified.application.auth.dto.response.CommonResponseDto;
-import com.gamified.application.auth.dto.response.SessionResponseDto;
-import com.gamified.application.auth.dto.response.UserResponseDto;
+import com.gamified.application.shared.model.dto.request.AuthRequestDto;
+import com.gamified.application.shared.model.dto.request.SessionRequestDto;
+import com.gamified.application.shared.model.dto.response.AuthResponseDto;
+import com.gamified.application.shared.model.dto.response.CommonResponseDto;
+import com.gamified.application.shared.model.dto.response.SessionResponseDto;
+import com.gamified.application.user.model.dto.response.UserResponseDto;
 import com.gamified.application.auth.service.auth.AuthenticationService;
 import com.gamified.application.config.TestConfig;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -25,7 +25,6 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import javax.sql.DataSource;
 import java.time.LocalDateTime;
-import java.util.Map;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;

@@ -1,7 +1,7 @@
 package com.gamified.application.auth.service.security;
 
 import com.gamified.application.auth.entity.security.EmailVerification;
-import com.gamified.application.auth.repository.interfaces.Result;
+import com.gamified.application.shared.repository.Result;
 
 import java.util.Optional;
 

@@ -1,9 +1,9 @@
 package com.gamified.application.auth.controller;
 
-import com.gamified.application.auth.dto.request.InstitutionRequestDto;
-import com.gamified.application.auth.dto.response.CommonResponseDto;
-import com.gamified.application.auth.dto.response.InstitutionResponseDto;
-import com.gamified.application.auth.service.core.InstitutionService;
+import com.gamified.application.institution.model.dto.request.InstitutionRequestDto;
+import com.gamified.application.institution.model.dto.response.InstitutionResponseDto;
+import com.gamified.application.institution.controller.InstitutionController;
+import com.gamified.application.institution.service.InstitutionService;
 import com.gamified.application.config.TestConfig;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
@@ -26,7 +26,6 @@ import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;

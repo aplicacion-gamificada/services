@@ -1,16 +1,16 @@
 package com.gamified.application.auth.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.gamified.application.auth.dto.request.UserRequestDto;
-import com.gamified.application.auth.dto.response.CommonResponseDto;
-import com.gamified.application.auth.dto.response.UserResponseDto;
-import com.gamified.application.auth.service.user.UserProfileService;
+import com.gamified.application.user.model.dto.request.UserRequestDto;
+import com.gamified.application.shared.model.dto.response.CommonResponseDto;
+import com.gamified.application.user.model.dto.response.UserResponseDto;
+import com.gamified.application.user.controller.UserController;
+import com.gamified.application.user.service.UserProfileService;
 import com.gamified.application.config.TestConfig;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mock;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;

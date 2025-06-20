@@ -1,8 +1,8 @@
 package com.gamified.application.auth.repository.core;
 
-import com.gamified.application.auth.entity.core.User;
-import com.gamified.application.auth.repository.interfaces.BaseRepository;
-import com.gamified.application.auth.repository.interfaces.Result;
+import com.gamified.application.user.model.entity.User;
+import com.gamified.application.shared.repository.BaseRepository;
+import com.gamified.application.shared.repository.Result;
 
 import java.util.List;
 import java.util.Optional;
