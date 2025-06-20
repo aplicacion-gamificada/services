@@ -25,7 +25,10 @@ import java.util.Map;
 @RestController
 @RequestMapping("/auth")
 @RequiredArgsConstructor
-@Tag(name = "Authentication", description = "Authentication API")
+@Tag(
+        name = "Authentication ",
+        description = "Provides endpoints for user authentication, registration, and session management."
+)
 public class AuthController {
 
     private final AuthenticationService authenticationService;

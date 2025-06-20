@@ -6,6 +6,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import io.swagger.v3.oas.annotations.tags.Tag;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
@@ -18,6 +19,10 @@ import java.util.Map;
 @RequestMapping("/perf-test")
 @RequiredArgsConstructor
 @Slf4j
+@Tag(
+        name = "Performance Test ",
+        description = "Provides endpoints for testing database performance and connection metrics."
+)
 public class PerformanceTestController {
 
     private final DataSource dataSource;

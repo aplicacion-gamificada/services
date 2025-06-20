@@ -21,6 +21,7 @@ import java.nio.charset.StandardCharsets;
 
 import org.springframework.http.HttpStatus;
 import com.gamified.application.shared.exception.EmailAlreadyExistsException;
+import io.swagger.v3.oas.annotations.tags.Tag;
 
 /**
  * Controlador para operaciones de registro de usuarios
@@ -28,6 +29,10 @@ import com.gamified.application.shared.exception.EmailAlreadyExistsException;
 @RestController
 @RequestMapping("/register")
 @RequiredArgsConstructor
+@Tag(
+        name = "Registration ",
+        description = "Provides endpoints for user registration and management."
+)
 public class RegistrationController {
 
     private final UserRegistrationService userRegistrationService;

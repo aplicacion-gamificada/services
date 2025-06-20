@@ -11,6 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import io.swagger.v3.oas.annotations.tags.Tag;
 
 import java.util.List;
 
@@ -20,6 +21,10 @@ import java.util.List;
 @RestController
 @RequestMapping("/sessions")
 @RequiredArgsConstructor
+@Tag(
+        name = "Session ",
+        description = "Provides endpoints for managing user sessions and session management."
+)
 public class SessionController {
 
     private final TokenService tokenService;

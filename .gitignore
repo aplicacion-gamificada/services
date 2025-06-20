@@ -43,3 +43,4 @@ api-docs.json
 GUIA_TESTING_DETALLADA.md
 README-TESTS.md
 setup-test-database.md
+src/test/resources/application-test.properties

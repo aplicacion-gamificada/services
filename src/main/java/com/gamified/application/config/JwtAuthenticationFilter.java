@@ -45,8 +45,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             return;
         }
 
-        // Extract JWT token
-        jwt = authHeader.substring(7);
+        // Extract JWT token and clean it
+        String rawJwt = authHeader.substring(7);
+        jwt = cleanToken(rawJwt);
         
         try {
             // Extract username from token
@@ -74,16 +75,30 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     SecurityContextHolder.getContext().setAuthentication(authToken);
                     logger.debug("User authenticated: " + username);
                 } else {
-                    logger.debug("Invalid JWT token for user: " + username);
+                    logger.debug("Invalid JWT token for user: " + username + " on path: " + request.getRequestURI());
                 }
             }
+        } catch (io.jsonwebtoken.security.SignatureException ex) {
+            logger.error("JWT Signature validation failed for path: " + request.getRequestURI() + " - Token may be malformed or using wrong secret");
+        } catch (io.jsonwebtoken.ExpiredJwtException ex) {
+            logger.error("JWT Token expired for path: " + request.getRequestURI() + " - User needs to login again");
+        } catch (io.jsonwebtoken.MalformedJwtException ex) {
+            logger.error("JWT Token malformed for path: " + request.getRequestURI() + " - Check token format");
         } catch (Exception ex) {
-            // Just continue without setting authentication on errors
-            logger.error("JWT Authentication error for path: " + request.getRequestURI(), ex);
+            logger.error("JWT Authentication error for path: " + request.getRequestURI() + " - " + ex.getClass().getSimpleName() + ": " + ex.getMessage());
         }
         
         // Continue filter chain
         filterChain.doFilter(request, response);
+    }
+    
+    private String cleanToken(String rawToken) {
+        String cleaned = rawToken.trim();
+        if ((cleaned.startsWith("\"") && cleaned.endsWith("\"")) || (cleaned.startsWith("'") && cleaned.endsWith("'"))) {
+            cleaned = cleaned.substring(1, cleaned.length() - 1);
+            logger.warn("Token contained quotes, cleaned: " + cleaned.substring(0, Math.min(20, cleaned.length())) + "...");
+        }
+        return cleaned;
     }
     
     private boolean isPublicEndpoint(String requestURI) {

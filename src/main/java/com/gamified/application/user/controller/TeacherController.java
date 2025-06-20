@@ -10,6 +10,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import io.swagger.v3.oas.annotations.tags.Tag;
 
 import java.util.List;
 
@@ -20,6 +21,10 @@ import java.util.List;
 @RequestMapping("/teachers")
 @RequiredArgsConstructor
 @Slf4j
+@Tag(
+        name = "Teacher ",
+        description = "Provides endpoints for managing teacher profiles, classrooms, and related users."
+)
 public class TeacherController {
 
     private final TeacherService teacherService;

@@ -13,6 +13,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import io.swagger.v3.oas.annotations.tags.Tag;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -24,6 +25,10 @@ import java.util.List;
 @RequestMapping("/institutions")
 @RequiredArgsConstructor
 @Slf4j
+@Tag(
+        name = "Institution ",
+        description = "Provides endpoints for managing institutions, administrators, and user assignments."
+)
 public class InstitutionController {
 
     private final InstitutionService institutionService;

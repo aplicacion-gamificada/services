@@ -9,6 +9,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import io.swagger.v3.oas.annotations.tags.Tag;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -18,7 +19,11 @@ import java.util.List;
  */
 @RestController
 @RequestMapping("/audit")
-@RequiredArgsConstructor
+@RequiredArgsConstructor@Tag(
+        name = "Audit ",
+        description = "Provides endpoints for retrieving login history, user activity, and audit logs for both users and administrators."
+)
+    
 public class AuditController {
 
     private final SecurityAuditService securityAuditService;

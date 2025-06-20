@@ -1,5 +1,9 @@
 package com.gamified.application.shared.util;
 
+import java.math.BigDecimal;
+import java.sql.Timestamp;
+import java.time.LocalDateTime;
+
 /**
  * Utilidades para conversión de tipos de datos de la base de datos
  */
@@ -7,23 +11,11 @@ public class DatabaseUtils {
     
     /**
      * Convierte valores de base de datos a Boolean de manera segura
-     * Maneja Integer (1/0), Boolean, String ("1"/"0", "true"/"false"), y null
-     * 
-     * @param value Valor a convertir
-     * @return Boolean equivalente (false si es null)
      */
     public static Boolean safeToBoolean(Object value) {
         return safeToBoolean(value, false);
     }
     
-    /**
-     * Convierte valores de base de datos a Boolean de manera segura
-     * Maneja Integer (1/0), Boolean, String ("1"/"0", "true"/"false"), y null
-     * 
-     * @param value Valor a convertir
-     * @param defaultValue Valor por defecto si value es null
-     * @return Boolean equivalente
-     */
     public static Boolean safeToBoolean(Object value, Boolean defaultValue) {
         if (value == null) {
             return defaultValue;
@@ -43,11 +35,9 @@ public class DatabaseUtils {
         } else if (value instanceof Long) {
             return ((Long) value) == 1L;
         } else {
-            // Para cualquier otro tipo numérico
             try {
                 return Double.valueOf(value.toString()) == 1.0;
             } catch (NumberFormatException e) {
-                // Si no es numérico, intentar como string
                 String strValue = value.toString().toLowerCase().trim();
                 return "1".equals(strValue) || "true".equals(strValue);
             }
@@ -56,10 +46,6 @@ public class DatabaseUtils {
     
     /**
      * Convierte valores de base de datos a Integer de manera segura
-     * 
-     * @param value Valor a convertir
-     * @param defaultValue Valor por defecto si value es null o no convertible
-     * @return Integer equivalente
      */
     public static Integer safeToInteger(Object value, Integer defaultValue) {
         if (value == null) {
@@ -79,12 +65,12 @@ public class DatabaseUtils {
         }
     }
     
+    public static Integer safeToInteger(Object value) {
+        return safeToInteger(value, null);
+    }
+    
     /**
      * Convierte valores de base de datos a Long de manera segura
-     * 
-     * @param value Valor a convertir
-     * @param defaultValue Valor por defecto si value es null o no convertible
-     * @return Long equivalente
      */
     public static Long safeToLong(Object value, Long defaultValue) {
         if (value == null) {
@@ -106,9 +92,6 @@ public class DatabaseUtils {
     
     /**
      * Convierte valores de base de datos a Byte de manera segura
-     * 
-     * @param value Valor a convertir
-     * @return Byte equivalente o null si no se puede convertir
      */
     public static Byte safeToByte(Object value) {
         if (value == null) {
@@ -126,5 +109,57 @@ public class DatabaseUtils {
         }
         
         return null;
+    }
+
+    /**
+     * Convierte valores de base de datos a LocalDateTime de manera segura
+     */
+    public static LocalDateTime safeToLocalDateTime(Object value) {
+        if (value == null) {
+            return null;
+        }
+        
+        if (value instanceof Timestamp) {
+            return ((Timestamp) value).toLocalDateTime();
+        } else if (value instanceof java.sql.Date) {
+            return ((java.sql.Date) value).toLocalDate().atStartOfDay();
+        } else if (value instanceof java.util.Date) {
+            return new Timestamp(((java.util.Date) value).getTime()).toLocalDateTime();
+        }
+        
+        return null;
+    }
+
+    /**
+     * Convierte valores de base de datos a BigDecimal de manera segura
+     */
+    public static BigDecimal safeToBigDecimal(Object value) {
+        if (value == null) {
+            return null;
+        }
+        
+        if (value instanceof BigDecimal) {
+            return (BigDecimal) value;
+        } else if (value instanceof Number) {
+            return new BigDecimal(((Number) value).toString());
+        } else if (value instanceof String) {
+            try {
+                return new BigDecimal((String) value);
+            } catch (NumberFormatException e) {
+                return null;
+            }
+        }
+        
+        return null;
+    }
+
+    /**
+     * Convierte valores de base de datos a String de manera segura
+     */
+    public static String safeToString(Object value) {
+        if (value == null) {
+            return null;
+        }
+        return value.toString();
     }
 } 
