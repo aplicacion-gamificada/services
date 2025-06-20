@@ -92,7 +92,7 @@ public class LearningResponseDto {
     @AllArgsConstructor
     public static class LearningPointDto {
         private Integer id;
-        private Integer unitsId;
+        private Integer learningPathId;
         private String unitTitle;
         private String title;
         private String description;

@@ -513,7 +513,7 @@ public class LearningRepositoryImpl implements LearningRepository {
     private LearningPoint mapLearningPointFromResultMap(Map<String, Object> data) {
         return LearningPoint.builder()
                 .id((Integer) data.get("id"))
-                .unitsId((Integer) data.get("units_id"))
+                .learningPathId((Integer) data.get("learning_point_id"))
                 .title((String) data.get("title"))
                 .description((String) data.get("description"))
                 .sequenceOrder((Integer) data.get("sequence_order"))

@@ -217,7 +217,7 @@ public class LearningServiceImpl implements LearningService {
         
         return LearningResponseDto.LearningPointDto.builder()
                 .id(learningPoint.getId())
-                .unitsId(learningPoint.getUnitsId())
+                .learningPathId(learningPoint.getLearningPathId())
                 .unitTitle(unit.getTitle())
                 .title(learningPoint.getTitle())
                 .description(learningPoint.getDescription())

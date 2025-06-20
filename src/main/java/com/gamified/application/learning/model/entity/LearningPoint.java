@@ -9,7 +9,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 /**
- * Entidad que representa un punto de aprendizaje dentro de una unidad
+ * Entidad que representa un punto de aprendizaje dentro de un learning path
  */
 @Data
 @Builder
@@ -17,7 +17,7 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 public class LearningPoint {
     private Integer id;
-    private Integer unitsId;
+    private Integer learningPathId;
     private String title;
     private String description;
     private Integer sequenceOrder;
