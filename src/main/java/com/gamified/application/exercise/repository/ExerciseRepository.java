@@ -108,6 +108,11 @@ public interface ExerciseRepository {
      */
     List<ExerciseTypeStats> getStudentExerciseTypeStats(Integer studentProfileId);
     
+    /**
+     * Cuenta intentos recientes de un estudiante en un learning point
+     */
+    Integer countRecentAttemptsByStudentAndLearningPoint(Integer studentId, Integer learningPointId, int days);
+    
     // ===================================================================
     // HELPER CLASSES FOR STATISTICS
     // ===================================================================
@@ -121,6 +126,21 @@ public interface ExerciseRepository {
         public Double averageScore;
         public Integer totalTimeSpentMinutes;
         public String preferredDifficulty;
+        public Integer getTotalExercisesCompleted() {
+            return totalExercisesCompleted;
+        }
+        public void setTotalExercisesCompleted(Integer totalExercisesCompleted) {
+            this.totalExercisesCompleted = totalExercisesCompleted;
+        }
+        public Double getAverageScore() {
+            return averageScore;
+        }
+        public String getPreferredDifficulty() {
+            return preferredDifficulty;
+        }
+        public void setPreferredDifficulty(String preferredDifficulty) {
+            this.preferredDifficulty = preferredDifficulty;
+        }
     }
     
     /**

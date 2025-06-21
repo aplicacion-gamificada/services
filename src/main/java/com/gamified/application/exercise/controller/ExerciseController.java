@@ -65,7 +65,7 @@ public class ExerciseController {
             @Valid @RequestBody ExerciseRequestDto.SubmitAttemptDto request) {
         
         log.info("POST /api/exercises/attempts - Enviando intento de ejercicio {} por estudiante {}", 
-                request.getExerciseId(), request.getStudentProfileId());
+                request.getGeneratedExerciseId(), request.getStudentProfileId());
         
         ExerciseResponseDto.AttemptResultDto result = exerciseService.submitExerciseAttempt(request);
         return ResponseEntity.ok(result);

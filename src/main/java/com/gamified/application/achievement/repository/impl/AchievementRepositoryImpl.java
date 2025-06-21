@@ -124,4 +124,15 @@ public class AchievementRepositoryImpl implements IAchievementRepository {
             throw new RuntimeException("Error al traer los datos: " + ex.getMessage(), ex);
         }
     }
+
+    @Override
+    public Integer getUserIdFromStudentProfile(Integer studentProfileId) {
+        try {
+            String sql = "SELECT user_id FROM student_profile WHERE id = ?";
+            return jdbcTemplate.queryForObject(sql, Integer.class, studentProfileId);
+        } catch (Exception e) {
+            // Si no se encuentra, retornar null
+            return null;
+        }
+    }
 }

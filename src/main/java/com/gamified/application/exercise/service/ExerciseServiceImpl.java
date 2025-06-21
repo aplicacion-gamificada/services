@@ -11,8 +11,10 @@ import com.gamified.application.exercise.repository.ExerciseRepository;
 import com.gamified.application.learning.repository.LearningRepository;
 import com.gamified.application.learning.model.entity.LearningPoint;
 import com.gamified.application.shared.exception.ResourceNotFoundException;
+import com.gamified.application.shared.model.event.DomainEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -32,6 +34,7 @@ public class ExerciseServiceImpl implements ExerciseService {
     private final ExerciseRepository exerciseRepository;
     private final LearningRepository learningRepository; // Para obtener información del learning point
     private final ObjectMapper objectMapper;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Override
     public ExerciseResponseDto.NextExerciseDto getNextExercise(Integer studentId, Integer learningPointId, String difficulty) {
@@ -110,6 +113,9 @@ public class ExerciseServiceImpl implements ExerciseService {
         
         Integer attemptId = exerciseRepository.createExerciseAttempt(attempt);
         attempt.setId(attemptId);
+        
+        // Emitir evento de ejercicio completado para el Rule Engine
+        publishExerciseCompletedEvent(exercise, attempt);
         
         // Buscar siguiente ejercicio sugerido
         ExerciseResponseDto.NextExerciseDto nextExercise = null;
@@ -238,6 +244,44 @@ public class ExerciseServiceImpl implements ExerciseService {
         } catch (Exception e) {
             log.error("Error generando feedback JSON: {}", e.getMessage());
             return isCorrect ? "Correcto" : "Incorrecto";
+        }
+    }
+
+    /**
+     * Publica evento de ejercicio completado para el Rule Engine
+     */
+    private void publishExerciseCompletedEvent(Exercise exercise, ExerciseAttempt attempt) {
+        try {
+            // Obtener tipo de ejercicio
+            String exerciseType = exerciseRepository.findExerciseTypeById(exercise.getExerciseTypeId())
+                .map(ExerciseType::getName)
+                .orElse("Unknown");
+
+            DomainEvent.ExerciseCompletedEvent event = DomainEvent.ExerciseCompletedEvent.builder()
+                .exerciseId(exercise.getId())
+                .studentProfileId(attempt.getStudentProfileId())
+                .learningPointId(exercise.getLearningPointId())
+                .difficulty(exercise.getDifficulty())
+                .isCorrect(attempt.getIsCorrect())
+                .score(attempt.getScore())
+                .timeSpentSeconds(attempt.getTimeSpentSeconds())
+                .hintsUsed(attempt.getHintsUsed())
+                .attemptNumber(attempt.getAttemptNumber())
+                .exerciseType(exerciseType)
+                .build();
+                
+            // Configurar campos base manualmente
+            event.setEventId(java.util.UUID.randomUUID().toString());
+            event.setOccurredAt(java.time.LocalDateTime.now());
+            event.setEventType("EXERCISE_COMPLETED");
+            event.setUserId(attempt.getStudentProfileId());
+
+            eventPublisher.publishEvent(event);
+            log.debug("Evento ExerciseCompleted publicado para estudiante {} y ejercicio {}", 
+                attempt.getStudentProfileId(), exercise.getId());
+
+        } catch (Exception e) {
+            log.error("Error publicando evento de ejercicio completado: {}", e.getMessage(), e);
         }
     }
 

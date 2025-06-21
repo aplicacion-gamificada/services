@@ -16,8 +16,9 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 public class ExerciseAttempt {
     private Integer id;
-    private Integer exerciseId;
+    private Integer exerciseId; // Ahora actúa como exercise_template_id (FK a la plantilla)
     private Integer studentProfileId;
+    private Long generatedExerciseId; // FK al ejercicio específico generado por IA
     private String submittedAnswer;
     private Boolean isCorrect;
     private Integer timeSpentSeconds;
@@ -27,4 +28,8 @@ public class ExerciseAttempt {
     private Integer attemptNumber; // Track multiple attempts
     private LocalDateTime submittedAt;
     private LocalDateTime createdAt;
+    
+    // Relaciones virtuales
+    private GeneratedExercise generatedExercise;
+    private Exercise exerciseTemplate;
 } 

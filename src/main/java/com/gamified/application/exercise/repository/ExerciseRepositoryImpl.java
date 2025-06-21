@@ -172,7 +172,8 @@ public class ExerciseRepositoryImpl implements ExerciseRepository {
             KeyHolder keyHolder = new GeneratedKeyHolder();
             namedParameterJdbcTemplate.update(sql, parameters, keyHolder, new String[]{"id"});
             
-            return keyHolder.getKey().intValue();
+            Number key = keyHolder.getKey();
+            return key != null ? key.intValue() : null;
         } catch (Exception e) {
             System.err.println("Error al crear ejercicio: " + e.getMessage());
             return null;
@@ -268,7 +269,8 @@ public class ExerciseRepositoryImpl implements ExerciseRepository {
             KeyHolder keyHolder = new GeneratedKeyHolder();
             namedParameterJdbcTemplate.update(sql, parameters, keyHolder, new String[]{"id"});
             
-            return keyHolder.getKey().intValue();
+            Number key = keyHolder.getKey();
+            return key != null ? key.intValue() : null;
         } catch (Exception e) {
             System.err.println("Error al crear intento de ejercicio: " + e.getMessage());
             return null;
@@ -461,10 +463,16 @@ public class ExerciseRepositoryImpl implements ExerciseRepository {
 
             String sql = """
                 SELECT 
-                    COUNT(DISTINCT ea.exercise_id) as total_attempted,
-                    COUNT(DISTINCT CASE WHEN ea.is_correct = 1 THEN ea.exercise_id END) as total_completed,
-                    AVG(CAST(ea.score as FLOAT)) as avg_score,
-                    SUM(ea.time_spent_seconds) / 60 as total_time_minutes
+                    COUNT(DISTINCT ea.exercise_id) as total_exercises_attempted,
+                    COUNT(DISTINCT CASE WHEN ea.is_correct = 1 THEN ea.exercise_id END) as total_exercises_completed,
+                    AVG(CAST(ea.score as FLOAT)) as average_score,
+                    SUM(ea.time_spent_seconds) / 60 as total_time_spent_minutes,
+                    (SELECT TOP 1 e.difficulty 
+                     FROM exercise e 
+                     INNER JOIN exercise_attempt ea2 ON e.id = ea2.exercise_id 
+                     WHERE ea2.student_profile_id = :student_profile_id AND ea2.is_correct = 1
+                     GROUP BY e.difficulty 
+                     ORDER BY COUNT(*) DESC) as preferred_difficulty
                 FROM exercise_attempt ea
                 WHERE ea.student_profile_id = :student_profile_id
                 """;
@@ -474,23 +482,54 @@ public class ExerciseRepositoryImpl implements ExerciseRepository {
             if (results.isEmpty()) {
                 return Optional.empty();
             }
-            
-            Map<String, Object> row = results.get(0);
+
+            Map<String, Object> result = results.get(0);
             StudentExerciseStats stats = new StudentExerciseStats();
-            stats.totalExercisesAttempted = row.get("total_attempted") != null ? 
-                ((Number) row.get("total_attempted")).intValue() : 0;
-            stats.totalExercisesCompleted = row.get("total_completed") != null ? 
-                ((Number) row.get("total_completed")).intValue() : 0;
-            stats.averageScore = row.get("avg_score") != null ? 
-                ((Number) row.get("avg_score")).doubleValue() : 0.0;
-            stats.totalTimeSpentMinutes = row.get("total_time_minutes") != null ? 
-                ((Number) row.get("total_time_minutes")).intValue() : 0;
-            stats.preferredDifficulty = "medium"; // Calcular en otra consulta si es necesario
+            stats.totalExercisesAttempted = result.get("total_exercises_attempted") != null ? 
+                    ((Number) result.get("total_exercises_attempted")).intValue() : 0;
+            stats.totalExercisesCompleted = result.get("total_exercises_completed") != null ? 
+                    ((Number) result.get("total_exercises_completed")).intValue() : 0;
+            stats.averageScore = result.get("average_score") != null ? 
+                    ((Number) result.get("average_score")).doubleValue() : 0.0;
+            stats.totalTimeSpentMinutes = result.get("total_time_spent_minutes") != null ? 
+                    ((Number) result.get("total_time_spent_minutes")).intValue() : 0;
+            stats.preferredDifficulty = (String) result.get("preferred_difficulty");
             
             return Optional.of(stats);
         } catch (Exception e) {
             System.err.println("Error al obtener estadísticas del estudiante: " + e.getMessage());
             return Optional.empty();
+        }
+    }
+
+    @Override
+    public Integer countRecentAttemptsByStudentAndLearningPoint(Integer studentId, Integer learningPointId, int days) {
+        try {
+            MapSqlParameterSource parameters = new MapSqlParameterSource();
+            parameters.addValue("student_profile_id", studentId, Types.INTEGER);
+            parameters.addValue("learning_point_id", learningPointId, Types.INTEGER);
+            parameters.addValue("days", days, Types.INTEGER);
+
+            String sql = """
+                SELECT COUNT(*)
+                FROM exercise_attempt ea
+                INNER JOIN exercise e ON ea.exercise_id = e.id
+                WHERE ea.student_profile_id = :student_profile_id 
+                  AND e.learning_point_id = :learning_point_id
+                  AND ea.submitted_at >= DATEADD(day, -:days, GETDATE())
+                """;
+
+            List<Map<String, Object>> results = namedParameterJdbcTemplate.queryForList(sql, parameters);
+            
+            if (results.isEmpty()) {
+                return 0;
+            }
+            
+            Object count = results.get(0).values().iterator().next();
+            return count != null ? ((Number) count).intValue() : 0;
+        } catch (Exception e) {
+            System.err.println("Error al contar intentos recientes: " + e.getMessage());
+            return 0;
         }
     }
 
