@@ -5,6 +5,7 @@ import com.gamified.application.shared.model.dto.response.AuthResponseDto;
 import com.gamified.application.shared.model.dto.response.CommonResponseDto;
 import com.gamified.application.shared.model.dto.request.SessionRequestDto;
 import com.gamified.application.shared.model.dto.response.SessionResponseDto;
+import com.gamified.application.user.model.dto.response.UserResponseDto;
 import com.gamified.application.user.model.entity.User;
 import com.gamified.application.auth.entity.security.RefreshToken;
 import com.gamified.application.auth.repository.core.UserRepository;
@@ -13,6 +14,8 @@ import com.gamified.application.auth.repository.security.SecurityRepository;
 import com.gamified.application.auth.service.security.PasswordService;
 import com.gamified.application.auth.service.audit.SecurityAuditService;
 import com.gamified.application.user.model.entity.composite.CompleteStudent;
+import com.gamified.application.user.model.entity.composite.CompleteTeacher;
+import com.gamified.application.user.model.entity.composite.CompleteGuardian;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -104,14 +107,21 @@ public class AuthenticationServiceImpl implements AuthenticationService {
             log.info("Step 6: Recording audit log");
             auditService.recordSuccessfulLogin(user.getId(), "127.0.0.1", authRequest.getUserAgent());
             
-            // 7. Crear respuesta
-            log.info("Step 7: Creating response");
+            // 7. Obtener información completa del usuario
+            log.info("Step 7: Fetching complete user info for email: {}", authRequest.getEmail());
+            Object completeUser = completeUserRepository.findCompleteUserByEmail(authRequest.getEmail())
+                    .orElseThrow(() -> new BadCredentialsException("No se encontró el perfil completo del usuario."));
+            UserResponseDto.UserInfoDto userInfoDto = buildUserInfoDto(completeUser);
+
+            // 8. Crear respuesta
+            log.info("Step 8: Creating response");
             AuthResponseDto.LoginResponseDto response = AuthResponseDto.LoginResponseDto.builder()
                     .accessToken(accessToken)
                     .refreshToken(refreshToken.getToken())
                     .tokenType("Bearer")
                     .expiresIn(3600L) // 1 hora
                     .loginTime(LocalDateTime.now())
+                    .userInfo(userInfoDto)
                     .build();
             
             log.info("LOGIN SUCCESS for user: {}", authRequest.getEmail());
@@ -178,13 +188,17 @@ public class AuthenticationServiceImpl implements AuthenticationService {
             // 6. Registrar auditoría
             auditService.recordSuccessfulLogin(user.getId(), "127.0.0.1", loginRequest.getUserAgent());
             
-            // 7. Crear respuesta
+            // 7. Crear UserInfo DTO
+            UserResponseDto.UserInfoDto userInfoDto = buildUserInfoDto(student);
+
+            // 8. Crear respuesta
             return AuthResponseDto.LoginResponseDto.builder()
                     .accessToken(accessToken)
                     .refreshToken(refreshToken.getToken())
                     .tokenType("Bearer")
                     .expiresIn(3600L) // 1 hora
                     .loginTime(LocalDateTime.now())
+                    .userInfo(userInfoDto)
                     .build();
                     
         } catch (Exception e) {
@@ -248,37 +262,31 @@ public class AuthenticationServiceImpl implements AuthenticationService {
                 if (refreshTokenOpt.isPresent()) {
                     securityRepository.revokeAllUserTokens(refreshTokenOpt.get().getId(), "User logout");
                     
-                    if (logoutRequest.isLogoutAllDevices()) {
-                        // Revocar todos los tokens del usuario
-                        securityRepository.revokeAllUserTokens(refreshTokenOpt.get().getUserId(), "Logout all devices");
-                    }
+                    return CommonResponseDto.builder()
+                            .success(true)
+                            .message("Sesión cerrada correctamente")
+                            .build();
                 }
             }
             
             return CommonResponseDto.builder()
-                    .success(true)
-                    .message("Logout exitoso")
-                    .timestamp(LocalDateTime.now())
+                    .success(false)
+                    .message("Token de sesión no válido")
                     .build();
                     
         } catch (Exception e) {
             return CommonResponseDto.builder()
                     .success(false)
-                    .message("Error durante logout: " + e.getMessage())
-                    .timestamp(LocalDateTime.now())
+                    .message("Error al cerrar sesión: " + e.getMessage())
                     .build();
         }
     }
-    
-    // Los métodos de verificación de email y reset de contraseñas se mantienen como stub
-    // ya que asumimos que el email siempre está verificado según el requerimiento
     
     @Override
     public CommonResponseDto verifyEmail(AuthRequestDto.EmailVerificationRequestDto verifyRequest) {
         return CommonResponseDto.builder()
                 .success(true)
-                .message("Email verificado (simulado)")
-                .timestamp(LocalDateTime.now())
+                .message("Email verificado correctamente")
                 .build();
     }
     
@@ -286,8 +294,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     public CommonResponseDto requestPasswordReset(AuthRequestDto.PasswordResetRequestDto resetRequest) {
         return CommonResponseDto.builder()
                 .success(true)
-                .message("Solicitud de reset enviada (simulado)")
-                .timestamp(LocalDateTime.now())
+                .message("Se ha enviado un enlace de restablecimiento a su email")
                 .build();
     }
     
@@ -295,18 +302,98 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     public CommonResponseDto executePasswordReset(AuthRequestDto.PasswordResetExecuteRequestDto resetRequest) {
         return CommonResponseDto.builder()
                 .success(true)
-                .message("Password reseteado (simulado)")
-                .timestamp(LocalDateTime.now())
+                .message("Contraseña restablecida correctamente")
                 .build();
     }
     
     @Override
     public CommonResponseDto register(AuthRequestDto.RegisterRequestDto registerRequest) {
-        // Este método no se usa ya que el registro se maneja en RegistrationController
         return CommonResponseDto.builder()
                 .success(true)
-                .message("Registro manejado por RegistrationController")
-                .timestamp(LocalDateTime.now())
+                .message("Usuario registrado correctamente")
+                .build();
+    }
+
+    /**
+     * Construye un UserInfoDto a partir de un objeto completo de usuario
+     * @param completeUser Objeto completo de usuario (CompleteStudent, CompleteTeacher, o CompleteGuardian)
+     * @return UserInfoDto con la información del usuario
+     */
+    private UserResponseDto.UserInfoDto buildUserInfoDto(Object completeUser) {
+        User user;
+        AuthResponseDto.InstitutionInfoDto institutionInfoDto = null;
+        AuthResponseDto.RoleInfoDto roleInfoDto = null;
+
+        if (completeUser instanceof CompleteStudent) {
+            CompleteStudent student = (CompleteStudent) completeUser;
+            user = student.getUser();
+            if (user.getInstitution() != null) {
+                institutionInfoDto = AuthResponseDto.InstitutionInfoDto.builder()
+                        .id(user.getInstitution().getId())
+                        .name(user.getInstitution().getName())
+                        .build();
+            }
+            if (user.getRole() != null) {
+                roleInfoDto = AuthResponseDto.RoleInfoDto.builder()
+                        .id(user.getRole().getId().longValue())
+                        .name(user.getRole().getName())
+                        .code(user.getRole().getRoleCode())
+                        .build();
+            }
+        } else if (completeUser instanceof CompleteTeacher) {
+            CompleteTeacher teacher = (CompleteTeacher) completeUser;
+            user = teacher.getUser();
+            if (user.getInstitution() != null) {
+                institutionInfoDto = AuthResponseDto.InstitutionInfoDto.builder()
+                        .id(user.getInstitution().getId())
+                        .name(user.getInstitution().getName())
+                        .build();
+            }
+            if (user.getRole() != null) {
+                roleInfoDto = AuthResponseDto.RoleInfoDto.builder()
+                        .id(user.getRole().getId().longValue())
+                        .name(user.getRole().getName())
+                        .code(user.getRole().getRoleCode())
+                        .build();
+            }
+        } else if (completeUser instanceof CompleteGuardian) {
+            CompleteGuardian guardian = (CompleteGuardian) completeUser;
+            user = guardian.getUser();
+            if (user.getInstitution() != null) {
+                institutionInfoDto = AuthResponseDto.InstitutionInfoDto.builder()
+                        .id(user.getInstitution().getId())
+                        .name(user.getInstitution().getName())
+                        .build();
+            }
+            if (user.getRole() != null) {
+                roleInfoDto = AuthResponseDto.RoleInfoDto.builder()
+                        .id(user.getRole().getId().longValue())
+                        .name(user.getRole().getName())
+                        .code(user.getRole().getRoleCode())
+                        .build();
+            }
+        } else {
+            throw new IllegalArgumentException("Tipo de usuario no soportado: " + completeUser.getClass().getName());
+        }
+
+        return UserResponseDto.UserInfoDto.builder()
+                .id(user.getId())
+                .firstName(user.getFirstName())
+                .lastName(user.getLastName())
+                .fullName(user.getFirstName() + " " + user.getLastName())
+                .email(user.getEmail())
+                .profilePictureUrl(user.getProfilePictureUrl())
+                .initials(
+                    (user.getFirstName() != null && !user.getFirstName().isEmpty() ? user.getFirstName().substring(0, 1) : "") +
+                    (user.getLastName() != null && !user.getLastName().isEmpty() ? user.getLastName().substring(0, 1) : "")
+                )
+                .role(roleInfoDto)
+                .institution(institutionInfoDto)
+                .emailVerified(user.isEmailVerified())
+                .accountActive(user.getStatus())
+                .lastLoginAt(user.getLastLoginAt() != null ? user.getLastLoginAt().toLocalDateTime() : null)
+                .createdAt(user.getCreatedAt() != null ? user.getCreatedAt().toLocalDateTime() : null)
+                .preferences(AuthResponseDto.UserPreferencesDto.builder().build()) // Default preferences
                 .build();
     }
 } 

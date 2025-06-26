@@ -838,36 +838,64 @@ public class CompleteUserRepositoryImpl implements CompleteUserRepository {
 
     @Override
     public Optional<Object> findCompleteUserByEmail(String email) {
-        // TODO: Implementar búsqueda de usuario por email
-        String userSql = "SELECT u.*, r.name as role_name, i.name as institution_name " +
-                         "FROM [user] u " +
-                         "JOIN role r ON u.role_id = r.id " +
-                         "JOIN institution i ON u.institution_id = i.id " +
-                         "WHERE u.email = ?";
+        try {
+            // 1. Primero obtener el usuario básico para determinar su rol
+            String userSql = "SELECT u.*, r.name as role_name, i.name as institution_name " +
+                             "FROM [user] u " +
+                             "JOIN role r ON u.role_id = r.id " +
+                             "JOIN institution i ON u.institution_id = i.id " +
+                             "WHERE u.email = ?";
 
-        List<User> users = jdbcTemplate.query(userSql, new Object[]{email}, (rs, rowNum) -> {
-            User user = mapUserFromResultSet(rs);
-            // Establecer objetos relacionados
-            Role role = new Role();
-            role.setId(user.getRoleId());
-            role.setName(rs.getString("role_name"));
-            user.setRole(role);
+            List<User> users = jdbcTemplate.query(userSql, new Object[]{email}, (rs, rowNum) -> {
+                User user = mapUserFromResultSet(rs);
+                // Establecer objetos relacionados
+                Role role = new Role();
+                role.setId(user.getRoleId());
+                role.setName(rs.getString("role_name"));
+                user.setRole(role);
 
-            Institution institution = new Institution();
-            institution.setId(user.getInstitutionId());
-            institution.setName(rs.getString("institution_name"));
-            user.setInstitution(institution);
+                Institution institution = new Institution();
+                institution.setId(user.getInstitutionId());
+                institution.setName(rs.getString("institution_name"));
+                user.setInstitution(institution);
 
-            return user;
-        });
+                return user;
+            });
 
-        if (users.isEmpty()) {
+            if (users.isEmpty()) {
+                return Optional.empty();
+            }
+
+            User user = users.get(0);
+            
+            // 2. Determinar el tipo de usuario basado en su rol y obtener el objeto completo
+            String roleName = user.getRole().getName();
+            
+            if ("STUDENT".equalsIgnoreCase(roleName)) {
+                Optional<CompleteStudent> studentOpt = findCompleteStudentById(user.getId());
+                if (studentOpt.isPresent()) {
+                    return Optional.of(studentOpt.get());
+                }
+            } else if ("TEACHER".equalsIgnoreCase(roleName)) {
+                Optional<CompleteTeacher> teacherOpt = findCompleteTeacherById(user.getId());
+                if (teacherOpt.isPresent()) {
+                    return Optional.of(teacherOpt.get());
+                }
+            } else if ("GUARDIAN".equalsIgnoreCase(roleName)) {
+                Optional<CompleteGuardian> guardianOpt = findCompleteGuardianById(user.getId());
+                if (guardianOpt.isPresent()) {
+                    return Optional.of(guardianOpt.get());
+                }
+            }
+            
+            // Si no se pudo obtener el objeto completo, devolver el usuario básico como fallback
+            // (esto no debería pasar normalmente, pero es mejor que devolver empty)
+            return Optional.of(user);
+            
+        } catch (Exception e) {
+            e.printStackTrace();
             return Optional.empty();
         }
-
-        User user = users.get(0);
-        
-        return Optional.of(user);
     }
 
     @Override
