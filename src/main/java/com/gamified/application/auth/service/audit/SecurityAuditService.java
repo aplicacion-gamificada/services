@@ -175,4 +175,13 @@ public interface SecurityAuditService {
      * @return Resultado con el registro creado
      */
     Result<AuditLog> recordFailedLogin(Long userId, String ipAddress, String failureReason);
+
+    /**
+     * Registra un logout exitoso
+     * @param userId ID del usuario
+     * @param ipAddress Dirección IP del cliente
+     * @param userAgent User-Agent del cliente
+     * @return Resultado con el registro creado
+     */
+    Result<AuditLog> recordLogout(Long userId, String ipAddress, String userAgent);
 } 

@@ -167,4 +167,13 @@ public class PasswordService {
         // Implementar generación de contraseña temporal si es necesario
         return "TempoPass123!";
     }
+    
+    /**
+     * Hash de una contraseña (alias para encodePassword)
+     * @param rawPassword Contraseña en texto plano
+     * @return Hash de la contraseña
+     */
+    public String hashPassword(String rawPassword) {
+        return encodePassword(rawPassword);
+    }
 } 

@@ -431,6 +431,33 @@ public class UserRepositoryImpl implements UserRepository {
         }
     }
     
+    @Override
+    @Transactional
+    public Result<Boolean> updatePassword(Long userId, String newPasswordHash) {
+        try {
+            System.out.println("UserRepository.updatePassword - Updating password for user ID: " + userId);
+            
+            int rowsAffected = jdbcTemplate.update(
+                "UPDATE [user] SET password = ?, updated_at = ? WHERE id = ?",
+                newPasswordHash,
+                new Timestamp(System.currentTimeMillis()),
+                userId
+            );
+            
+            if (rowsAffected > 0) {
+                System.out.println("UserRepository.updatePassword - Password updated successfully");
+                return Result.success(true);
+            } else {
+                System.out.println("UserRepository.updatePassword - No user found with ID: " + userId);
+                return Result.failure("No se encontró el usuario con ID: " + userId);
+            }
+        } catch (Exception e) {
+            System.out.println("UserRepository.updatePassword - Error: " + e.getMessage());
+            e.printStackTrace();
+            return Result.failure("Error al actualizar la contraseña: " + e.getMessage(), e);
+        }
+    }
+    
     // Mapeo de ResultSet a User
     private User mapUser(ResultSet rs) throws SQLException {
         return new User(

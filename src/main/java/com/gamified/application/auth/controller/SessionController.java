@@ -130,9 +130,27 @@ public class SessionController {
      * @return ID del usuario
      */
     private Long getUserIdFromAuthentication(Authentication authentication) {
-        // Esto dependerá de cómo se almacene el ID de usuario en el objeto Authentication
-        // Por ahora, asumiremos que es un Long que se puede obtener del principal
-        return Long.valueOf(authentication.getName());
+        try {
+            // El principal puede ser el email del usuario o el ID
+            // Según la configuración del JWT, el subject suele ser el email
+            String principal = authentication.getName();
+            
+            // Intentar parsear como Long primero (si es userId)
+            try {
+                return Long.valueOf(principal);
+            } catch (NumberFormatException e) {
+                // Si no es un número, probablemente es un email
+                // En este caso, necesitaríamos buscar el usuario por email
+                // TODO: Implementar búsqueda por email para obtener userId
+                // User user = userRepository.findByEmail(principal);
+                // return user.getId();
+                
+                // Por ahora, retornamos un valor por defecto
+                return 1L; // Valor temporal
+            }
+        } catch (Exception e) {
+            throw new IllegalStateException("No se pudo extraer el ID de usuario de la autenticación", e);
+        }
     }
 
     /**

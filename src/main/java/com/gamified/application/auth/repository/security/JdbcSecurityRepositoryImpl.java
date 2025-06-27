@@ -9,9 +9,13 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import org.springframework.jdbc.support.GeneratedKeyHolder;
+import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Repository;
 
-import javax.sql.DataSource;
+import javax.sql.DataSource; 
+import java.sql.PreparedStatement;
+import java.sql.Statement;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.util.*;
@@ -162,26 +166,53 @@ public class JdbcSecurityRepositoryImpl implements SecurityRepository {
     @Override
     public Result<RefreshToken> createRefreshToken(Long userId, String ipAddress, String userAgent, String deviceInfo, String sessionName) {
         try {
-            // Para implementación real, usar SimpleJdbcInsert o JdbcTemplate para insertar en la BD
-            // Aquí simularemos la creación de un token
-            
+            String tokenValue = UUID.randomUUID().toString();
             LocalDateTime expiryDateTime = LocalDateTime.now().plusDays(7); // 7 días
             Timestamp expiryTimestamp = Timestamp.valueOf(expiryDateTime);
+            Timestamp now = Timestamp.valueOf(LocalDateTime.now());
             
-            RefreshToken refreshToken = RefreshToken.builder()
-                    .id(new Random().nextLong(1000) + 1) // ID aleatorio para simulación
-                    .token(UUID.randomUUID().toString())
-                    .userId(userId)
-                    .expiresAt(expiryTimestamp)
-                    .isRevoked(false)
-                    .createdAt(Timestamp.valueOf(LocalDateTime.now()))
-                    .ipAddress(ipAddress)
-                    .userAgent(userAgent)
-                    .deviceInfo(deviceInfo)
-                    .sessionName(sessionName)
-                    .build();
+            String sql = """
+                INSERT INTO refresh_token (
+                    token, user_id, expires_at, is_revoked, created_at, 
+                    ip_address, user_agent, device_info, session_name
+                ) VALUES (?, ?, ?, 0, ?, ?, ?, ?, ?)
+                """;
             
-            return Result.success(refreshToken);
+            KeyHolder keyHolder = new GeneratedKeyHolder();
+            
+            int result = jdbcTemplate.update(connection -> {
+                PreparedStatement ps = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
+                ps.setString(1, tokenValue);
+                ps.setLong(2, userId);
+                ps.setTimestamp(3, expiryTimestamp);
+                ps.setTimestamp(4, now);
+                ps.setString(5, ipAddress);
+                ps.setString(6, userAgent);
+                ps.setString(7, deviceInfo);
+                ps.setString(8, sessionName);
+                return ps;
+            }, keyHolder);
+            
+            if (result > 0) {
+                Long generatedId = keyHolder.getKey().longValue();
+                
+                RefreshToken refreshToken = RefreshToken.builder()
+                        .id(generatedId)
+                        .token(tokenValue)
+                        .userId(userId)
+                        .expiresAt(expiryTimestamp)
+                        .isRevoked(false)
+                        .createdAt(now)
+                        .ipAddress(ipAddress)
+                        .userAgent(userAgent)
+                        .deviceInfo(deviceInfo)
+                        .sessionName(sessionName)
+                        .build();
+                
+                return Result.success(refreshToken);
+            } else {
+                return Result.failure("No se pudo insertar el refresh token");
+            }
         } catch (Exception e) {
             return Result.failure("Error al crear refresh token: " + e.getMessage());
         }
@@ -190,23 +221,20 @@ public class JdbcSecurityRepositoryImpl implements SecurityRepository {
     @Override
     public Optional<RefreshToken> findRefreshTokenByValue(String tokenValue) {
         try {
-            // Implementación temporal
-            if (tokenValue != null && !tokenValue.isEmpty()) {
-                RefreshToken refreshToken = RefreshToken.builder()
-                        .id(1L)
-                        .token(tokenValue)
-                        .userId(1L)
-                        .expiresAt(Timestamp.valueOf(LocalDateTime.now().plusDays(7)))
-                        .isRevoked(false)
-                        .createdAt(Timestamp.valueOf(LocalDateTime.now().minusDays(1)))
-                        .ipAddress("127.0.0.1")
-                        .userAgent("Mozilla/5.0")
-                        .deviceInfo("Chrome en Windows")
-                        .sessionName("Sesión de prueba")
-                        .build();
-                return Optional.of(refreshToken);
+            if (tokenValue == null || tokenValue.isEmpty()) {
+                return Optional.empty();
             }
-            return Optional.empty();
+            
+            String sql = """
+                SELECT id, token, user_id, expires_at, is_revoked, revoked_at, 
+                       revoked_reason, created_at, last_used_at, ip_address, 
+                       user_agent, device_info, session_name
+                FROM refresh_token 
+                WHERE token = ? AND is_revoked = 0
+                """;
+            
+            List<RefreshToken> tokens = jdbcTemplate.query(sql, refreshTokenRowMapper, tokenValue);
+            return tokens.isEmpty() ? Optional.empty() : Optional.of(tokens.get(0));
         } catch (Exception e) {
             return Optional.empty();
         }
@@ -225,10 +253,21 @@ public class JdbcSecurityRepositoryImpl implements SecurityRepository {
                 return Result.failure("El token ya ha sido revocado");
             }
             
-            token.revoke(reason);
+            String sql = """
+                UPDATE refresh_token 
+                SET is_revoked = 1, 
+                    revoked_at = GETDATE(), 
+                    revoked_reason = ?
+                WHERE token = ?
+                """;
             
-            // Simulamos la actualización en la BD
-            return Result.success(token);
+            int result = jdbcTemplate.update(sql, reason, tokenValue);
+            if (result > 0) {
+                token.revoke(reason);
+                return Result.success(token);
+            } else {
+                return Result.failure("No se pudo revocar el token");
+            }
         } catch (Exception e) {
             return Result.failure("Error al revocar el token: " + e.getMessage());
         }
@@ -236,9 +275,21 @@ public class JdbcSecurityRepositoryImpl implements SecurityRepository {
 
     @Override
     public int revokeAllUserTokens(Long userId, String reason) {
-        // Implementación temporal
-        // En una implementación real, se actualizarían todos los tokens del usuario
-        return 3; // Simulamos que se revocaron 3 tokens
+        try {
+            String sql = """
+                UPDATE refresh_token 
+                SET is_revoked = 1, 
+                    revoked_at = GETDATE(), 
+                    revoked_reason = ?
+                WHERE user_id = ? AND is_revoked = 0
+                """;
+            
+            int revokedCount = jdbcTemplate.update(sql, reason, userId);
+            return revokedCount;
+        } catch (Exception e) {
+            // Log del error en implementación real
+            return 0;
+        }
     }
 
     @Override
@@ -278,9 +329,8 @@ public class JdbcSecurityRepositoryImpl implements SecurityRepository {
     @Override
     public void updateRefreshTokenLastUsed(Long tokenId) {
         try {
-            // Implementación temporal - en una implementación real actualizaría el campo last_used_at
-            // String sql = "UPDATE refresh_token SET last_used_at = ? WHERE id = ?";
-            // jdbcTemplate.update(sql, new Timestamp(System.currentTimeMillis()), tokenId);
+            String sql = "UPDATE refresh_token SET last_used_at = GETDATE() WHERE id = ?";
+            jdbcTemplate.update(sql, tokenId);
         } catch (Exception e) {
             // Log error in real implementation
         }

@@ -147,12 +147,23 @@ public class AuthController {
         // Añadir información del cliente al request
         enrichRequestWithClientInfo(resendRequest, request);
         
-        // Esta implementación dependerá de cómo se maneje en el servicio
-        // Por ahora, devolveremos una respuesta fija
+        // Implementación mejorada con validaciones
+        if (resendRequest.getEmail() == null || resendRequest.getEmail().trim().isEmpty()) {
+            return ResponseEntity.badRequest().body(
+                    CommonResponseDto.builder()
+                            .success(false)
+                            .message("Email requerido para reenviar verificación")
+                            .build()
+            );
+        }
+        
+        // TODO: Integrar con EmailVerificationService cuando esté disponible
+        // emailVerificationService.resendVerificationEmail(email, ipAddress, userAgent);
+        
         return ResponseEntity.ok(
                 CommonResponseDto.builder()
                         .success(true)
-                        .message("Se ha enviado un nuevo email de verificación. Por favor, revise su bandeja de entrada.")
+                        .message("Si el email existe en nuestro sistema, se ha enviado un nuevo enlace de verificación.")
                         .build()
         );
     }

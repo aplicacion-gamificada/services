@@ -162,6 +162,13 @@ public class SecurityAuditServiceImpl implements SecurityAuditService {
         return Result.success(new AuditLog());
     }
     
+    @Override
+    public Result<AuditLog> recordLogout(Long userId, String ipAddress, String userAgent) {
+        // Implementación simple para registro de logout exitoso
+        logAction(userId, (byte) 3, "USER", userId, "User logout", ipAddress, userAgent, false);
+        return Result.success(new AuditLog());
+    }
+    
     // Métodos de mapeo auxiliares
     
     private AuditResponseDto.LoginHistoryResponseDto mapToLoginHistoryResponseDto(LoginHistory history) {

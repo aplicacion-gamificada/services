@@ -66,4 +66,12 @@ public interface UserRepository extends BaseRepository<User, Long> {
      * @return Lista de usuarios que coinciden
      */
     List<User> searchUsers(String searchTerm, int limit);
+    
+    /**
+     * Actualiza la contraseña de un usuario
+     * @param userId ID del usuario
+     * @param newPasswordHash Nuevo hash de la contraseña
+     * @return Resultado de la operación
+     */
+    Result<Boolean> updatePassword(Long userId, String newPasswordHash);
 } 

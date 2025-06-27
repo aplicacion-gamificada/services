@@ -178,7 +178,7 @@ public class LearningRepositoryImpl implements LearningRepository {
             MapSqlParameterSource parameters = new MapSqlParameterSource();
             parameters.addValue("module_id", moduleId, Types.INTEGER);
 
-            String sql = "SELECT TOP 100 id, module_id, title, description, sequence, status, created_at, updated_at " +
+            String sql = "SELECT TOP 100 id, module_id, title, description, sequence, status " +
                         "FROM units WHERE module_id = :module_id AND status = 1 ORDER BY sequence";
             
             List<Map<String, Object>> results = namedParameterJdbcTemplate.queryForList(sql, parameters);
