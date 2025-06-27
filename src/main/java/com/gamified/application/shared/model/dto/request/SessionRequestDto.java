@@ -21,6 +21,7 @@ public class SessionRequestDto {
 
         private String deviceInfo;
         private String userAgent;
+        private String ipAddress;
     }
 
     /**
@@ -40,6 +41,7 @@ public class SessionRequestDto {
         private Boolean logoutAllDevices = false; // true = cerrar sesión en todos los dispositivos
 
         private String deviceInfo;
+        private String ipAddress;
 
         public Boolean isLogoutAllDevices() {
             return this.logoutAllDevices;

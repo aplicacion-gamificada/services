@@ -91,9 +91,10 @@ public class AuthenticationServiceImpl implements AuthenticationService {
             claims.put("role", user.getRole().getName());
             String accessToken = tokenService.generateAccessToken(user, claims);
             
+            String ipAddress = authRequest.getIpAddress() != null ? authRequest.getIpAddress() : "0.0.0.0";
             RefreshToken refreshToken = tokenService.generateRefreshToken(
                 user.getId(),
-                authRequest.getDeviceInfo() != null ? "127.0.0.1" : "127.0.0.1", // IP por defecto
+                ipAddress,
                 authRequest.getUserAgent() != null ? authRequest.getUserAgent() : "Unknown",
                 authRequest.getDeviceInfo() != null ? authRequest.getDeviceInfo() : "Unknown",
                 "Default Session"
@@ -102,11 +103,11 @@ public class AuthenticationServiceImpl implements AuthenticationService {
             
             // 5. Actualizar último login
             log.info("Step 5: Updating login status");
-            userRepository.updateLoginStatus(user.getId(), true, "127.0.0.1");
+            userRepository.updateLoginStatus(user.getId(), true, ipAddress);
             
             // 6. Registrar auditoría
             log.info("Step 6: Recording audit log");
-            auditService.recordSuccessfulLogin(user.getId(), "127.0.0.1", authRequest.getUserAgent());
+            auditService.recordSuccessfulLogin(user.getId(), ipAddress, authRequest.getUserAgent());
             
             // 7. Obtener información completa del usuario
             log.info("Step 7: Fetching complete user info for email: {}", authRequest.getEmail());
@@ -132,10 +133,11 @@ public class AuthenticationServiceImpl implements AuthenticationService {
             log.error("LOGIN FAILED - AuthenticationException for email: {} - Error: {}", authRequest.getEmail(), e.getMessage());
             
             // Registrar intento fallido
+            String ipAddress = authRequest.getIpAddress() != null ? authRequest.getIpAddress() : "0.0.0.0";
             Optional<User> userOpt = userRepository.findByEmail(authRequest.getEmail());
             if (userOpt.isPresent()) {
-                userRepository.updateLoginStatus(userOpt.get().getId(), false, "127.0.0.1");
-                auditService.recordFailedLogin(userOpt.get().getId(), "127.0.0.1", "Invalid credentials");
+                userRepository.updateLoginStatus(userOpt.get().getId(), false, ipAddress);
+                auditService.recordFailedLogin(userOpt.get().getId(), ipAddress, "Invalid credentials");
             }
             throw new BadCredentialsException("Credenciales inválidas");
         }
@@ -157,10 +159,11 @@ public class AuthenticationServiceImpl implements AuthenticationService {
             User user = student.getUser();
             
             // 2. Verificar contraseña
+            String ipAddress = loginRequest.getIpAddress() != null ? loginRequest.getIpAddress() : "0.0.0.0";
             if (!passwordService.verifyPassword(loginRequest.getPassword(), user.getPassword())) {
                 // Registrar intento fallido
-                userRepository.updateLoginStatus(user.getId(), false, "127.0.0.1");
-                auditService.recordFailedLogin(user.getId(), "127.0.0.1", "Invalid password");
+                userRepository.updateLoginStatus(user.getId(), false, ipAddress);
+                auditService.recordFailedLogin(user.getId(), ipAddress, "Invalid password");
                 throw new BadCredentialsException("Contraseña incorrecta");
             }
             
@@ -177,17 +180,17 @@ public class AuthenticationServiceImpl implements AuthenticationService {
             
             RefreshToken refreshToken = tokenService.generateRefreshToken(
                 user.getId(),
-                "127.0.0.1",
+                ipAddress,
                 loginRequest.getUserAgent() != null ? loginRequest.getUserAgent() : "Unknown",
                 loginRequest.getDeviceInfo() != null ? loginRequest.getDeviceInfo() : "Unknown",
                 "Student Session"
             );
             
             // 5. Actualizar último login
-            userRepository.updateLoginStatus(user.getId(), true, "127.0.0.1");
+            userRepository.updateLoginStatus(user.getId(), true, ipAddress);
             
             // 6. Registrar auditoría
-            auditService.recordSuccessfulLogin(user.getId(), "127.0.0.1", loginRequest.getUserAgent());
+            auditService.recordSuccessfulLogin(user.getId(), ipAddress, loginRequest.getUserAgent());
             
             // 7. Crear UserInfo DTO
             UserResponseDto.UserInfoDto userInfoDto = buildUserInfoDto(student);
@@ -277,9 +280,8 @@ public class AuthenticationServiceImpl implements AuthenticationService {
                     log.info("User login status updated to false");
                     
                     // 4. Registrar auditoría del logout
-                    auditService.recordLogout(userId, 
-                        logoutRequest.getDeviceInfo() != null ? "127.0.0.1" : "127.0.0.1", 
-                        logoutRequest.getDeviceInfo());
+                    String logoutIpAddress = logoutRequest.getIpAddress() != null ? logoutRequest.getIpAddress() : "0.0.0.0";
+                    auditService.recordLogout(userId, logoutIpAddress, logoutRequest.getDeviceInfo());
                     log.info("Logout audit recorded");
                     
                     return CommonResponseDto.builder()
@@ -386,8 +388,9 @@ public class AuthenticationServiceImpl implements AuthenticationService {
             // securityRepository.createPasswordResetToken(user.getId(), resetToken, resetRequest.getDeviceInfo());
             
             // Registrar auditoría
+            String resetIpAddress = resetRequest.getIpAddress() != null ? resetRequest.getIpAddress() : "0.0.0.0";
             auditService.logAction(user.getId(), (byte) 4, "USER", user.getId(), 
-                    "Password reset requested", "127.0.0.1", resetRequest.getUserAgent(), true);
+                    "Password reset requested", resetIpAddress, resetRequest.getUserAgent(), true);
             
             log.info("Password reset request processed for email: {}", resetRequest.getEmail());
             
@@ -446,15 +449,18 @@ public class AuthenticationServiceImpl implements AuthenticationService {
             // Actualizar contraseña
             userRepository.updatePassword(user.getId(), hashedPassword);
             
+            // IP para auditoría (considerando que executePasswordReset típicamente se ejecuta desde email)
+            String executeIpAddress = "0.0.0.0"; // No tenemos IP del cliente en este contexto
+            
             // Registrar cambio de contraseña en historial
-            securityRepository.recordPasswordChange(user.getId(), hashedPassword, "127.0.0.1", "Password Reset", false);
+            securityRepository.recordPasswordChange(user.getId(), hashedPassword, executeIpAddress, "Password Reset", false);
             
             // Revocar todas las sesiones activas del usuario por seguridad
             securityRepository.revokeAllUserTokens(user.getId(), "Password reset - security measure");
             
             // Registrar auditoría
             auditService.logAction(user.getId(), (byte) 5, "USER", user.getId(), 
-                    "Password reset completed", "127.0.0.1", "Password Reset", true);
+                    "Password reset completed", executeIpAddress, "Password Reset", true);
             
             log.info("Password reset completed successfully for user ID: {}", user.getId());
             

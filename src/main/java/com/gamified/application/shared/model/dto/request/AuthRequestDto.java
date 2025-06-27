@@ -29,6 +29,7 @@ public class AuthRequestDto {
 
         private String deviceInfo;
         private String userAgent;
+        private String ipAddress;
     }
 
     /**
@@ -138,6 +139,7 @@ public class AuthRequestDto {
 
         private String deviceInfo;
         private String userAgent;
+        private String ipAddress;
     }
 
     /**
@@ -215,6 +217,7 @@ public class AuthRequestDto {
 
         private String deviceInfo;
         private String userAgent;
+        private String ipAddress;
     }
 
     // Add a PasswordResetExecuteRequestDto
@@ -277,5 +280,6 @@ public class AuthRequestDto {
 
         private String deviceInfo;
         private String userAgent;
+        private String ipAddress;
     }
 }

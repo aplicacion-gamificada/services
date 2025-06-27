@@ -151,7 +151,7 @@ public class JdbcSecurityRepositoryImpl implements SecurityRepository {
                     0, // attemptCount
                     null, // lastAttemptAt
                     new Timestamp(now.getTime() - 3600000), // createdAt (-1 hora)
-                    "127.0.0.1", // ipAddress
+                    "0.0.0.0", // ipAddress - IP desconocida por defecto
                     "Mozilla/5.0" // userAgent
                 );
                 

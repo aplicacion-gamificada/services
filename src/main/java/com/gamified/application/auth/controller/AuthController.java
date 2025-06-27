@@ -6,6 +6,7 @@ import com.gamified.application.shared.model.dto.response.AuthResponseDto;
 import com.gamified.application.shared.model.dto.response.CommonResponseDto;
 import com.gamified.application.shared.model.dto.response.SessionResponseDto;
 import com.gamified.application.auth.service.auth.AuthenticationService;
+import com.gamified.application.shared.util.IpAddressUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -238,19 +239,37 @@ public class AuthController {
     private void enrichRequestWithClientInfo(Object dto, HttpServletRequest request) {
         String userAgent = request.getHeader("User-Agent");
         String deviceInfo = extractDeviceInfo(userAgent);
+        String clientIp = IpAddressUtil.getClientIpAddress(request);
         
         if (dto instanceof AuthRequestDto.LoginRequestDto) {
-            ((AuthRequestDto.LoginRequestDto) dto).setUserAgent(userAgent);
-            ((AuthRequestDto.LoginRequestDto) dto).setDeviceInfo(deviceInfo);
+            AuthRequestDto.LoginRequestDto loginDto = (AuthRequestDto.LoginRequestDto) dto;
+            loginDto.setUserAgent(userAgent);
+            loginDto.setDeviceInfo(deviceInfo);
+            loginDto.setIpAddress(clientIp);
         } else if (dto instanceof SessionRequestDto.RefreshTokenRequestDto) {
-            ((SessionRequestDto.RefreshTokenRequestDto) dto).setUserAgent(userAgent);
-            ((SessionRequestDto.RefreshTokenRequestDto) dto).setDeviceInfo(deviceInfo);
+            SessionRequestDto.RefreshTokenRequestDto refreshDto = (SessionRequestDto.RefreshTokenRequestDto) dto;
+            refreshDto.setUserAgent(userAgent);
+            refreshDto.setDeviceInfo(deviceInfo);
+            refreshDto.setIpAddress(clientIp);
         } else if (dto instanceof AuthRequestDto.PasswordResetRequestDto) {
-            ((AuthRequestDto.PasswordResetRequestDto) dto).setUserAgent(userAgent);
-            ((AuthRequestDto.PasswordResetRequestDto) dto).setDeviceInfo(deviceInfo);
+            AuthRequestDto.PasswordResetRequestDto resetDto = (AuthRequestDto.PasswordResetRequestDto) dto;
+            resetDto.setUserAgent(userAgent);
+            resetDto.setDeviceInfo(deviceInfo);
+            resetDto.setIpAddress(clientIp);
         } else if (dto instanceof AuthRequestDto.ResendVerificationRequestDto) {
-            ((AuthRequestDto.ResendVerificationRequestDto) dto).setUserAgent(userAgent);
-            ((AuthRequestDto.ResendVerificationRequestDto) dto).setDeviceInfo(deviceInfo);
+            AuthRequestDto.ResendVerificationRequestDto resendDto = (AuthRequestDto.ResendVerificationRequestDto) dto;
+            resendDto.setUserAgent(userAgent);
+            resendDto.setDeviceInfo(deviceInfo);
+            resendDto.setIpAddress(clientIp);
+        } else if (dto instanceof SessionRequestDto.LogoutRequestDto) {
+            SessionRequestDto.LogoutRequestDto logoutDto = (SessionRequestDto.LogoutRequestDto) dto;
+            logoutDto.setDeviceInfo(deviceInfo);
+            logoutDto.setIpAddress(clientIp);
+        } else if (dto instanceof AuthRequestDto.StudentLoginRequestDto) {
+            AuthRequestDto.StudentLoginRequestDto studentDto = (AuthRequestDto.StudentLoginRequestDto) dto;
+            studentDto.setUserAgent(userAgent);
+            studentDto.setDeviceInfo(deviceInfo);
+            studentDto.setIpAddress(clientIp);
         }
     }
     
