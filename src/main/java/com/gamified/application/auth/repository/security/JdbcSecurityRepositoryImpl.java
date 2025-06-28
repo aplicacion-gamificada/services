@@ -335,4 +335,14 @@ public class JdbcSecurityRepositoryImpl implements SecurityRepository {
             // Log error in real implementation
         }
     }
+    
+    @Override
+    public Long findUserIdByEmail(String email) {
+        try {
+            String sql = "SELECT id FROM [user] WHERE email = ? AND status = 1";
+            return jdbcTemplate.queryForObject(sql, Long.class, email);
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Usuario no encontrado con email: " + email, e);
+        }
+    }
 } 

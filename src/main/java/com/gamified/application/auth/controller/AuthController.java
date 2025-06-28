@@ -6,6 +6,7 @@ import com.gamified.application.shared.model.dto.response.AuthResponseDto;
 import com.gamified.application.shared.model.dto.response.CommonResponseDto;
 import com.gamified.application.shared.model.dto.response.SessionResponseDto;
 import com.gamified.application.auth.service.auth.AuthenticationService;
+import com.gamified.application.auth.service.security.EmailVerificationService;
 import com.gamified.application.shared.util.IpAddressUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -35,6 +36,7 @@ public class AuthController {
     private final AuthenticationService authenticationService;
     private final JdbcTemplate jdbcTemplate;
     private final DataSource dataSource;
+    private final EmailVerificationService emailVerificationService;
 
     /**
      * Endpoint para iniciar sesión
@@ -158,15 +160,38 @@ public class AuthController {
             );
         }
         
-        // TODO: Integrar con EmailVerificationService cuando esté disponible
-        // emailVerificationService.resendVerificationEmail(email, ipAddress, userAgent);
-        
-        return ResponseEntity.ok(
-                CommonResponseDto.builder()
-                        .success(true)
-                        .message("Si el email existe en nuestro sistema, se ha enviado un nuevo enlace de verificación.")
-                        .build()
-        );
+        // Integrar con EmailVerificationService
+        try {
+            // Primero buscar el usuario por email para obtener su ID
+            String findUserSql = "SELECT id FROM [user] WHERE email = ? AND status = 1";
+            Long userId = jdbcTemplate.queryForObject(findUserSql, Long.class, resendRequest.getEmail());
+            
+            if (userId != null) {
+                // Reenviar email de verificación
+                emailVerificationService.resendVerificationEmail(
+                    userId, 
+                    resendRequest.getEmail(), 
+                    resendRequest.getIpAddress(), 
+                    resendRequest.getUserAgent()
+                );
+            }
+            
+            // Siempre devolver la misma respuesta por seguridad (no revelar si el email existe)
+            return ResponseEntity.ok(
+                    CommonResponseDto.builder()
+                            .success(true)
+                            .message("Si el email existe en nuestro sistema, se ha enviado un nuevo enlace de verificación.")
+                            .build()
+            );
+        } catch (Exception e) {
+            // Si hay error (ej: usuario no encontrado), devolver la misma respuesta
+            return ResponseEntity.ok(
+                    CommonResponseDto.builder()
+                            .success(true)
+                            .message("Si el email existe en nuestro sistema, se ha enviado un nuevo enlace de verificación.")
+                            .build()
+            );
+        }
     }
 
     /**

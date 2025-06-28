@@ -222,4 +222,15 @@ public class TokenServiceImpl implements TokenService {
     public Optional<RefreshToken> findRefreshToken(String token) {
         return securityRepository.findRefreshTokenByValue(token);
     }
+    
+    @Override
+    public Long findUserIdByEmail(String email) {
+        // Buscar el ID de usuario por email usando SecurityRepository
+        // Como no tenemos este método en SecurityRepository, lo implementaremos directamente
+        try {
+            return securityRepository.findUserIdByEmail(email);
+        } catch (Exception e) {
+            throw new IllegalStateException("Error buscando usuario por email: " + email, e);
+        }
+    }
 } 

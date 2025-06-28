@@ -6,6 +6,7 @@ import com.gamified.application.institution.model.dto.response.InstitutionRespon
 import com.gamified.application.institution.model.dto.response.AdminResponseDto;
 import com.gamified.application.institution.service.InstitutionService;
 import com.gamified.application.shared.model.dto.response.CommonResponseDto;
+import org.springframework.security.core.Authentication;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -136,10 +137,11 @@ public class InstitutionController {
     @GetMapping("/{institutionId}/users/summary")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<AdminResponseDto.InstitutionUsersSummaryDto> getInstitutionUsersSummary(
-            @PathVariable Long institutionId) {
+            @PathVariable Long institutionId,
+            Authentication authentication) {
         log.info("GET /api/institutions/{}/users/summary - Admin obteniendo resumen", institutionId);
         
-        // TODO: Implementar validación de que admin pertenece a esta institución
+        validateAdminBelongsToInstitution(institutionId, authentication);
         AdminResponseDto.InstitutionUsersSummaryDto summary = institutionService.getUsersSummary(institutionId);
         return ResponseEntity.ok(summary);
     }
@@ -156,7 +158,8 @@ public class InstitutionController {
     public ResponseEntity<List<AdminResponseDto.UserSummaryDto>> getInstitutionUsers(
             @PathVariable Long institutionId,
             @RequestParam(required = false, name = "role") String role,
-            @RequestParam(required = false) Boolean unassigned) {
+            @RequestParam(required = false) Boolean unassigned,
+            Authentication authentication) {
         log.info("GET /api/institutions/{}/users - Admin obteniendo usuarios (role={}, unassigned={})", 
                 institutionId, role, unassigned);
         
@@ -167,7 +170,7 @@ public class InstitutionController {
             }
         }
         
-        // TODO: Implementar validación de que admin pertenece a esta institución
+        validateAdminBelongsToInstitution(institutionId, authentication);
         List<AdminResponseDto.UserSummaryDto> users = institutionService.getUsers(institutionId, role, unassigned);
         return ResponseEntity.ok(users);
     }
@@ -180,10 +183,11 @@ public class InstitutionController {
     @GetMapping("/{institutionId}/students/unassigned")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<AdminResponseDto.StudentForAssignmentDto>> getUnassignedStudents(
-            @PathVariable Long institutionId) {
+            @PathVariable Long institutionId,
+            Authentication authentication) {
         log.info("GET /api/institutions/{}/students/unassigned - Admin obteniendo estudiantes sin guardián", institutionId);
         
-        // TODO: Implementar validación de que admin pertenece a esta institución
+        validateAdminBelongsToInstitution(institutionId, authentication);
         List<AdminResponseDto.StudentForAssignmentDto> students = institutionService.getUnassignedStudents(institutionId);
         return ResponseEntity.ok(students);
     }
@@ -196,10 +200,11 @@ public class InstitutionController {
     @GetMapping("/{institutionId}/guardians/available")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<AdminResponseDto.GuardianForAssignmentDto>> getAvailableGuardians(
-            @PathVariable Long institutionId) {
+            @PathVariable Long institutionId,
+            Authentication authentication) {
         log.info("GET /api/institutions/{}/guardians/available - Admin obteniendo guardianes disponibles", institutionId);
         
-        // TODO: Implementar validación de que admin pertenece a esta institución
+        validateAdminBelongsToInstitution(institutionId, authentication);
         List<AdminResponseDto.GuardianForAssignmentDto> guardians = institutionService.getAvailableGuardians(institutionId);
         return ResponseEntity.ok(guardians);
     }
@@ -214,11 +219,12 @@ public class InstitutionController {
     @PreAuthorize("hasAnyRole('ADMIN', 'TEACHER')")
     public ResponseEntity<List<AdminResponseDto.StudentResponseDto>> getStudentsByGuardian(
             @PathVariable Long institutionId,
-            @PathVariable Long guardianProfileId) {
+            @PathVariable Long guardianProfileId,
+            Authentication authentication) {
         log.info("GET /api/institutions/{}/guardians/{}/students - Obteniendo estudiantes del guardián", 
                 institutionId, guardianProfileId);
         
-        // TODO: Implementar validación de permisos y pertenencia institucional
+        validateInstitutionalAccess(institutionId, authentication, true); // Permitir TEACHER
         List<AdminResponseDto.StudentResponseDto> students = institutionService.getStudentsByGuardian(institutionId, guardianProfileId);
         return ResponseEntity.ok(students);
     }
@@ -233,11 +239,12 @@ public class InstitutionController {
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<CommonResponseDto> assignGuardianToStudent(
             @PathVariable Long institutionId,
-            @Valid @RequestBody AdminRequestDto.AssignGuardianRequestDto request) {
+            @Valid @RequestBody AdminRequestDto.AssignGuardianRequestDto request,
+            Authentication authentication) {
         log.info("POST /api/institutions/{}/assign-guardian - Admin asignando guardián", institutionId);
         
         try {
-            // TODO: Implementar validación de que admin pertenece a esta institución
+            validateAdminBelongsToInstitution(institutionId, authentication);
             CommonResponseDto response = institutionService.assignGuardianToStudent(institutionId, request);
             return ResponseEntity.ok(response);
         } catch (Exception e) {
@@ -263,11 +270,12 @@ public class InstitutionController {
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<CommonResponseDto> reassignGuardian(
             @PathVariable Long institutionId,
-            @Valid @RequestBody AdminRequestDto.ReassignGuardianRequestDto request) {
+            @Valid @RequestBody AdminRequestDto.ReassignGuardianRequestDto request,
+            Authentication authentication) {
         log.info("PUT /api/institutions/{}/reassign-guardian - Admin reasignando guardián", institutionId);
         
         try {
-            // TODO: Implementar validación de que admin pertenece a esta institución
+            validateAdminBelongsToInstitution(institutionId, authentication);
             CommonResponseDto response = institutionService.reassignGuardian(institutionId, request);
             return ResponseEntity.ok(response);
         } catch (Exception e) {
@@ -291,11 +299,72 @@ public class InstitutionController {
     @GetMapping("/{institutionId}/statistics")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<AdminResponseDto.InstitutionStatisticsDto> getInstitutionStatistics(
-            @PathVariable Long institutionId) {
+            @PathVariable Long institutionId,
+            Authentication authentication) {
         log.info("GET /api/institutions/{}/statistics - Admin obteniendo estadísticas", institutionId);
         
-        // TODO: Implementar validación de que admin pertenece a esta institución
+        validateAdminBelongsToInstitution(institutionId, authentication);
         AdminResponseDto.InstitutionStatisticsDto statistics = institutionService.getStatistics(institutionId);
         return ResponseEntity.ok(statistics);
+    }
+
+    /**
+     * Valida que el administrador pertenece a la institución
+     * @param institutionId ID de la institución
+     * @param authentication Datos de autenticación del usuario
+     * @throws IllegalArgumentException si el usuario no pertenece a la institución
+     */
+    private void validateAdminBelongsToInstitution(Long institutionId, Authentication authentication) {
+        if (authentication == null || !authentication.isAuthenticated()) {
+            throw new IllegalArgumentException("Usuario no autenticado");
+        }
+        
+        String userEmail = authentication.getName();
+        
+        // Buscar el usuario por email y verificar que pertenece a la institución
+        try {
+            boolean belongsToInstitution = institutionService.validateUserBelongsToInstitution(userEmail, institutionId);
+            if (!belongsToInstitution) {
+                throw new IllegalArgumentException("El administrador no pertenece a esta institución");
+            }
+        } catch (Exception e) {
+            log.warn("Error validando pertenencia institucional para usuario {}: {}", userEmail, e.getMessage());
+            throw new IllegalArgumentException("Error validando permisos de acceso");
+        }
+    }
+
+    /**
+     * Valida permisos y pertenencia institucional para operaciones de consulta
+     * @param institutionId ID de la institución
+     * @param authentication Datos de autenticación del usuario
+     * @param allowTeacher Si se permite acceso a profesores (además de admins)
+     */
+    private void validateInstitutionalAccess(Long institutionId, Authentication authentication, boolean allowTeacher) {
+        if (authentication == null || !authentication.isAuthenticated()) {
+            throw new IllegalArgumentException("Usuario no autenticado");
+        }
+        
+        String userEmail = authentication.getName();
+        
+        try {
+            // Obtener el rol del usuario
+            String userRole = institutionService.getUserRole(userEmail);
+            
+            // Verificar si el usuario tiene permiso para esta operación
+            boolean hasPermission = "ADMIN".equals(userRole) || (allowTeacher && "TEACHER".equals(userRole));
+            
+            if (!hasPermission) {
+                throw new IllegalArgumentException("Permisos insuficientes para esta operación");
+            }
+            
+            // Verificar que pertenece a la institución
+            boolean belongsToInstitution = institutionService.validateUserBelongsToInstitution(userEmail, institutionId);
+            if (!belongsToInstitution) {
+                throw new IllegalArgumentException("El usuario no pertenece a esta institución");
+            }
+        } catch (Exception e) {
+            log.warn("Error validando acceso institucional para usuario {}: {}", userEmail, e.getMessage());
+            throw new IllegalArgumentException("Error validando permisos de acceso");
+        }
     }
 } 

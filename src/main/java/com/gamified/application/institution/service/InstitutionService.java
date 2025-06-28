@@ -104,4 +104,19 @@ public interface InstitutionService {
      * @return Estadísticas de la institución
      */
     AdminResponseDto.InstitutionStatisticsDto getStatistics(Long institutionId);
+    
+    /**
+     * Valida que un usuario pertenece a una institución
+     * @param userEmail Email del usuario
+     * @param institutionId ID de la institución
+     * @return true si el usuario pertenece a la institución
+     */
+    boolean validateUserBelongsToInstitution(String userEmail, Long institutionId);
+    
+    /**
+     * Obtiene el rol de un usuario
+     * @param userEmail Email del usuario
+     * @return Nombre del rol del usuario
+     */
+    String getUserRole(String userEmail);
 } 

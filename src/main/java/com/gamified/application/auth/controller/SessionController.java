@@ -140,16 +140,30 @@ public class SessionController {
                 return Long.valueOf(principal);
             } catch (NumberFormatException e) {
                 // Si no es un número, probablemente es un email
-                // En este caso, necesitaríamos buscar el usuario por email
-                // TODO: Implementar búsqueda por email para obtener userId
-                // User user = userRepository.findByEmail(principal);
-                // return user.getId();
-                
-                // Por ahora, retornamos un valor por defecto
-                return 1L; // Valor temporal
+                // Buscar el usuario por email usando UserDetailsServiceImpl
+                return findUserIdByEmail(principal);
             }
         } catch (Exception e) {
             throw new IllegalStateException("No se pudo extraer el ID de usuario de la autenticación", e);
+        }
+    }
+    
+    /**
+     * Busca el ID de usuario por email
+     * @param email Email del usuario
+     * @return ID del usuario
+     */
+    private Long findUserIdByEmail(String email) {
+        try {
+            // Consulta directa para obtener el ID por email
+            String sql = "SELECT id FROM [user] WHERE email = ? AND status = 1";
+            Long userId = tokenService.findUserIdByEmail(email);
+            if (userId != null) {
+                return userId;
+            }
+            throw new IllegalArgumentException("Usuario no encontrado con email: " + email);
+        } catch (Exception e) {
+            throw new IllegalStateException("Error buscando usuario por email: " + email, e);
         }
     }
 

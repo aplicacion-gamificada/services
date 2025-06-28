@@ -48,3 +48,5 @@ src/test/resources/application-test.properties
 GUIA.md
 TEACHER_ENDPOINTS_IMPLEMENTATION.md
 GUIA.md
+/.cursor
+.cursorignore

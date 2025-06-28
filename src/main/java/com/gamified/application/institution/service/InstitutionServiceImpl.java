@@ -447,11 +447,141 @@ public class InstitutionServiceImpl implements InstitutionService {
                 .studentsWithGuardian(studentsWithGuardian)
                 .studentsWithoutGuardian(studentsWithoutGuardian)
                 .guardianAssignmentPercentage(guardianAssignmentPercentage)
-                .usersLoggedInLast30Days(0) // TODO: Implementar consulta específica si se requiere
-                .newUsersThisMonth(0) // TODO: Implementar consulta específica si se requiere
-                .lastActivity(LocalDateTime.now()) // TODO: Obtener fecha real de última actividad
+                .usersLoggedInLast30Days(getUsersLoggedInLast30Days(institutionId))
+                .newUsersThisMonth(getNewUsersThisMonth(institutionId))
+                .lastActivity(getLastActivity(institutionId))
                 .generatedAt(LocalDateTime.now())
-                .generatedBy("SYSTEM") // TODO: Obtener usuario actual del contexto de seguridad
+                .generatedBy(getCurrentUser())
                 .build();
+    }
+
+    /**
+     * Obtiene el número de usuarios que han iniciado sesión en los últimos 30 días
+     * @param institutionId ID de la institución
+     * @return Número de usuarios activos en los últimos 30 días
+     */
+    private int getUsersLoggedInLast30Days(Long institutionId) {
+        try {
+            String sql = """
+                SELECT COUNT(DISTINCT u.id)
+                FROM [user] u
+                WHERE u.institution_id = ? 
+                AND u.status = 1
+                AND u.last_login_at >= DATEADD(day, -30, GETDATE())
+                """;
+            
+            Integer count = userProfileService.executeCountQuery(sql, institutionId);
+            return count != null ? count : 0;
+        } catch (Exception e) {
+            log.warn("Error obteniendo usuarios activos últimos 30 días para institución {}: {}", institutionId, e.getMessage());
+            return 0;
+        }
+    }
+
+    /**
+     * Obtiene el número de usuarios nuevos este mes
+     * @param institutionId ID de la institución
+     * @return Número de usuarios creados este mes
+     */
+    private int getNewUsersThisMonth(Long institutionId) {
+        try {
+            String sql = """
+                SELECT COUNT(*)
+                FROM [user] u
+                WHERE u.institution_id = ? 
+                AND u.status = 1
+                AND YEAR(u.created_at) = YEAR(GETDATE())
+                AND MONTH(u.created_at) = MONTH(GETDATE())
+                """;
+            
+            Integer count = userProfileService.executeCountQuery(sql, institutionId);
+            return count != null ? count : 0;
+        } catch (Exception e) {
+            log.warn("Error obteniendo usuarios nuevos este mes para institución {}: {}", institutionId, e.getMessage());
+            return 0;
+        }
+    }
+
+    /**
+     * Obtiene la fecha de última actividad en la institución
+     * @param institutionId ID de la institución
+     * @return Fecha de última actividad
+     */
+    private LocalDateTime getLastActivity(Long institutionId) {
+        try {
+            String sql = """
+                SELECT TOP 1 u.last_login_at
+                FROM [user] u
+                WHERE u.institution_id = ? 
+                AND u.status = 1
+                AND u.last_login_at IS NOT NULL
+                ORDER BY u.last_login_at DESC
+                """;
+            
+            java.sql.Timestamp lastLogin = userProfileService.executeTimestampQuery(sql, institutionId);
+            return lastLogin != null ? lastLogin.toLocalDateTime() : LocalDateTime.now().minusDays(30);
+        } catch (Exception e) {
+            log.warn("Error obteniendo última actividad para institución {}: {}", institutionId, e.getMessage());
+            return LocalDateTime.now().minusDays(30);
+        }
+    }
+
+    /**
+     * Obtiene el usuario actual del contexto de seguridad
+     * @return Identificador del usuario actual o "SYSTEM" si no hay contexto de seguridad
+     */
+    private String getCurrentUser() {
+        try {
+            // Obtener el usuario actual del contexto de seguridad
+            org.springframework.security.core.Authentication authentication = 
+                org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+            
+            if (authentication != null && authentication.isAuthenticated() && 
+                !"anonymousUser".equals(authentication.getPrincipal())) {
+                return authentication.getName();
+            }
+            
+            return "SYSTEM";
+        } catch (Exception e) {
+            log.warn("Error obteniendo usuario actual: {}", e.getMessage());
+            return "SYSTEM";
+        }
+    }
+
+    @Override
+    public boolean validateUserBelongsToInstitution(String userEmail, Long institutionId) {
+        try {
+            String sql = """
+                SELECT COUNT(*)
+                FROM [user] u
+                WHERE u.email = ? 
+                AND u.institution_id = ? 
+                AND u.status = 1
+                """;
+            
+            Integer count = userProfileService.executeCountQuery(sql, userEmail, institutionId);
+            return count != null && count > 0;
+        } catch (Exception e) {
+            log.warn("Error validando pertenencia institucional para usuario {}: {}", userEmail, e.getMessage());
+            return false;
+        }
+    }
+
+    @Override
+    public String getUserRole(String userEmail) {
+        try {
+            String sql = """
+                SELECT r.name
+                FROM [user] u
+                JOIN role r ON u.role_id = r.id
+                WHERE u.email = ? 
+                AND u.status = 1
+                """;
+            
+            return userProfileService.executeStringQuery(sql, userEmail);
+        } catch (Exception e) {
+            log.warn("Error obteniendo rol del usuario {}: {}", userEmail, e.getMessage());
+            return null;
+        }
     }
 } 

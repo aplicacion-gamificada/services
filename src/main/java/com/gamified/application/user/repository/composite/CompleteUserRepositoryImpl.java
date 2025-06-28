@@ -930,22 +930,156 @@ public class CompleteUserRepositoryImpl implements CompleteUserRepository {
     @Override
     @Transactional
     public Result<CompleteStudent> updateCompleteStudent(CompleteStudent completeStudent) {
-        // TODO: Implementar actualización de estudiante completo
-        return Result.failure("Método no implementado aún");
+        try {
+            User user = completeStudent.getUser();
+            StudentProfile profile = completeStudent.getStudentProfile();
+            
+            // 1. Actualizar datos del usuario
+            String updateUserSql = """
+                UPDATE [user] 
+                SET first_name = ?, last_name = ?, email = ?, 
+                    profile_picture_url = ?, updated_at = GETDATE()
+                WHERE id = ?
+                """;
+            
+            int userUpdated = jdbcTemplate.update(updateUserSql,
+                user.getFirstName(),
+                user.getLastName(), 
+                user.getEmail(),
+                user.getProfilePictureUrl(),
+                user.getId()
+            );
+            
+            if (userUpdated == 0) {
+                return Result.failure("No se encontró el usuario para actualizar");
+            }
+            
+            // 2. Actualizar datos del perfil de estudiante
+            String updateProfileSql = """
+                UPDATE student_profile 
+                SET username = ?, birth_date = ?, points_amount = ?, 
+                    guardian_profile_id = ?, updated_at = GETDATE()
+                WHERE user_id = ?
+                """;
+            
+            int profileUpdated = jdbcTemplate.update(updateProfileSql,
+                profile.getUsername(),
+                profile.getBirthDate(),
+                profile.getPointsAmount(),
+                profile.getGuardianProfileId(),
+                user.getId()
+            );
+            
+            if (profileUpdated == 0) {
+                return Result.failure("No se encontró el perfil de estudiante para actualizar");
+            }
+            
+            return Result.success(completeStudent);
+            
+        } catch (Exception e) {
+            return Result.failure("Error al actualizar estudiante completo: " + e.getMessage());
+        }
     }
 
     @Override
     @Transactional
     public Result<CompleteTeacher> updateCompleteTeacher(CompleteTeacher completeTeacher) {
-        // TODO: Implementar actualización de profesor completo
-        return Result.failure("Método no implementado aún");
+        try {
+            User user = completeTeacher.getUser();
+            TeacherProfile profile = completeTeacher.getTeacherProfile();
+            
+            // 1. Actualizar datos del usuario
+            String updateUserSql = """
+                UPDATE [user] 
+                SET first_name = ?, last_name = ?, email = ?, 
+                    profile_picture_url = ?, updated_at = GETDATE()
+                WHERE id = ?
+                """;
+            
+            int userUpdated = jdbcTemplate.update(updateUserSql,
+                user.getFirstName(),
+                user.getLastName(), 
+                user.getEmail(),
+                user.getProfilePictureUrl(),
+                user.getId()
+            );
+            
+            if (userUpdated == 0) {
+                return Result.failure("No se encontró el usuario para actualizar");
+            }
+            
+            // 2. Actualizar datos del perfil de profesor
+            String updateProfileSql = """
+                UPDATE teacher_profile 
+                SET email_verified = ?, stem_area_id = ?, updated_at = GETDATE()
+                WHERE user_id = ?
+                """;
+            
+            int profileUpdated = jdbcTemplate.update(updateProfileSql,
+                profile.getEmailVerified(),
+                profile.getStemAreaId(),
+                user.getId()
+            );
+            
+            if (profileUpdated == 0) {
+                return Result.failure("No se encontró el perfil de profesor para actualizar");
+            }
+            
+            return Result.success(completeTeacher);
+            
+        } catch (Exception e) {
+            return Result.failure("Error al actualizar profesor completo: " + e.getMessage());
+        }
     }
 
     @Override
     @Transactional
     public Result<CompleteGuardian> updateCompleteGuardian(CompleteGuardian completeGuardian) {
-        // TODO: Implementar actualización de guardián completo
-        return Result.failure("Método no implementado aún");
+        try {
+            User user = completeGuardian.getUser();
+            GuardianProfile profile = completeGuardian.getGuardianProfile();
+            
+            // 1. Actualizar datos del usuario
+            String updateUserSql = """
+                UPDATE [user] 
+                SET first_name = ?, last_name = ?, email = ?, 
+                    profile_picture_url = ?, updated_at = GETDATE()
+                WHERE id = ?
+                """;
+            
+            int userUpdated = jdbcTemplate.update(updateUserSql,
+                user.getFirstName(),
+                user.getLastName(), 
+                user.getEmail(),
+                user.getProfilePictureUrl(),
+                user.getId()
+            );
+            
+            if (userUpdated == 0) {
+                return Result.failure("No se encontró el usuario para actualizar");
+            }
+            
+            // 2. Actualizar datos del perfil de guardián
+            String updateProfileSql = """
+                UPDATE guardian_profile 
+                SET phone = ?, updated_at = GETDATE()
+                WHERE user_id = ?
+                """;
+            
+            int profileUpdated = jdbcTemplate.update(updateProfileSql,
+                profile.getPhone(),
+                user.getId()
+            );
+            
+            if (profileUpdated == 0) {
+                return Result.failure("No se encontró el perfil de guardián para actualizar");
+            }
+            
+            return Result.success(completeGuardian);
+            
+        } catch (Exception e) {
+            return Result.failure("Error al actualizar guardián completo: " + e.getMessage());
+        }
     }
     
     /**

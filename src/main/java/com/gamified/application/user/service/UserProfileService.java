@@ -102,6 +102,16 @@ public interface UserProfileService {
      */
     List<UserResponseDto.BasicUserResponseDto> searchUsers(String searchTerm, String roleFilter, int limit);
 
+    /**
+     * Busca usuarios limitado al scope de un profesor (estudiantes de sus clases)
+     * @param teacherUserId ID del usuario profesor
+     * @param searchTerm Término de búsqueda
+     * @param roleFilter Filtro de rol (opcional)
+     * @param limit Límite de resultados
+     * @return Lista de perfiles que coinciden en el scope del profesor
+     */
+    List<UserResponseDto.BasicUserResponseDto> searchUsersInTeacherScope(Long teacherUserId, String searchTerm, String roleFilter, int limit);
+
     // ==================== MÉTODOS PARA ADMINISTRACIÓN INSTITUCIONAL ====================
 
     /**
@@ -150,4 +160,28 @@ public interface UserProfileService {
      * @return true si la reasignación fue exitosa
      */
     boolean reassignGuardianToStudent(Long studentProfileId, Long previousGuardianProfileId, Long newGuardianProfileId);
+    
+    /**
+     * Ejecuta una consulta SQL que devuelve un conteo
+     * @param sql Consulta SQL
+     * @param params Parámetros de la consulta
+     * @return Resultado del conteo
+     */
+    Integer executeCountQuery(String sql, Object... params);
+    
+    /**
+     * Ejecuta una consulta SQL que devuelve un timestamp
+     * @param sql Consulta SQL
+     * @param params Parámetros de la consulta
+     * @return Timestamp resultado
+     */
+    java.sql.Timestamp executeTimestampQuery(String sql, Object... params);
+    
+    /**
+     * Ejecuta una consulta SQL que devuelve un string
+     * @param sql Consulta SQL
+     * @param params Parámetros de la consulta
+     * @return String resultado
+     */
+    String executeStringQuery(String sql, Object... params);
 } 

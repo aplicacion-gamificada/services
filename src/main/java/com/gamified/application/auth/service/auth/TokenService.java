@@ -113,4 +113,11 @@ public interface TokenService {
      * @return Token si existe
      */
     Optional<RefreshToken> findRefreshToken(String token);
+    
+    /**
+     * Busca el ID de usuario por email
+     * @param email Email del usuario
+     * @return ID del usuario si existe
+     */
+    Long findUserIdByEmail(String email);
 }

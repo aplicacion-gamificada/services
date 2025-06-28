@@ -229,8 +229,22 @@ public class UserController {
             @RequestParam(required = false, defaultValue = "20") int limit,
             Authentication authentication) {
         
-        // TODO: Implementar lógica diferenciada para TEACHER vs ADMIN
-        List<UserResponseDto.BasicUserResponseDto> users = userProfileService.searchUsers(searchTerm, roleFilter, limit);
+        Long currentUserId = getUserIdFromAuthentication(authentication);
+        
+        // Determinar si el usuario actual es TEACHER o ADMIN
+        boolean isAdmin = authentication.getAuthorities().stream()
+            .anyMatch(auth -> auth.getAuthority().equals("ROLE_ADMIN"));
+        
+        List<UserResponseDto.BasicUserResponseDto> users;
+        
+        if (isAdmin) {
+            // ADMIN: búsqueda completa en toda la institución
+            users = userProfileService.searchUsers(searchTerm, roleFilter, limit);
+        } else {
+            // TEACHER: búsqueda limitada a estudiantes de sus clases
+            users = userProfileService.searchUsersInTeacherScope(currentUserId, searchTerm, roleFilter, limit);
+        }
+        
         return ResponseEntity.ok(users);
     }
     

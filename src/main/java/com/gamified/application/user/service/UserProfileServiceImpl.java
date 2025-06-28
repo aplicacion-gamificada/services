@@ -49,12 +49,10 @@ public class UserProfileServiceImpl implements UserProfileService {
         StudentProfile profile = student.getStudentProfile();
         
         // Obtener el nivel actual del estudiante
-        // TODO: Implementar cuando las tablas student_level y level_system estén disponibles
-        Integer level = 1; // Nivel por defecto temporal
+        Integer level = getStudentLevel(profile.getId());
         
         // Obtener los logros recientes
-        List<UserResponseDto.AchievementSummaryDto> achievements = new ArrayList<>();
-        // TODO: Implementar obtención de logros recientes
+        List<UserResponseDto.AchievementSummaryDto> achievements = getRecentStudentAchievements(userId, 5);
         
         return UserResponseDto.StudentResponseDto.builder()
                 .id(user.getId())
@@ -124,8 +122,7 @@ public class UserProfileServiceImpl implements UserProfileService {
         }
         
         // Obtener nombre del área STEM
-        // TODO: Implementar cuando la tabla stem_area esté disponible
-        String stemAreaName = "Área no definida"; // Temporal hasta confirmar que la tabla existe
+        String stemAreaName = getStemAreaName(profile.getStemAreaId());
         
         return UserResponseDto.TeacherResponseDto.builder()
                 .id(user.getId())
@@ -352,7 +349,7 @@ public class UserProfileServiceImpl implements UserProfileService {
                     .createdAt(rs.getTimestamp("created_at") != null ? 
                               rs.getTimestamp("created_at").toLocalDateTime() : null)
                     .level(1)
-                    .recentAchievements(new ArrayList<>())
+                    .recentAchievements(getRecentStudentAchievements(rs.getLong("id"), 3))
                     .build()
             );
             
@@ -415,9 +412,8 @@ public class UserProfileServiceImpl implements UserProfileService {
         User user = completeStudent.getUser();
         StudentProfile profile = completeStudent.getStudentProfile();
         
-        // Obtener el nivel actual del estudiante (si existe)
-        // TODO: Implementar cuando las tablas student_level y level_system estén disponibles
-        Integer level = 1; // Nivel por defecto temporal
+        // Obtener el nivel actual del estudiante
+        Integer level = getStudentLevel(profile.getId());
         
         return UserResponseDto.StudentResponseDto.builder()
                 .id(user.getId())
@@ -438,7 +434,7 @@ public class UserProfileServiceImpl implements UserProfileService {
                 .createdAt(user.getCreatedAt() != null ? 
                            user.getCreatedAt().toLocalDateTime() : LocalDateTime.now())
                 .level(level)
-                .recentAchievements(new ArrayList<>())
+                .recentAchievements(getRecentStudentAchievements(user.getId(), 3))
                 .build();
     }
     
@@ -587,7 +583,7 @@ public class UserProfileServiceImpl implements UserProfileService {
                     .createdAt(rs.getTimestamp("created_at") != null ? 
                               rs.getTimestamp("created_at").toLocalDateTime() : null)
                     .level(1)
-                    .recentAchievements(new ArrayList<>())
+                    .recentAchievements(getRecentStudentAchievements(rs.getLong("id"), 3))
                     .build()
             );
             
@@ -694,6 +690,189 @@ public class UserProfileServiceImpl implements UserProfileService {
             System.err.println("❌ Error reassigning guardian to student: " + e.getMessage());
             e.printStackTrace();
             return false;
+        }
+    }
+
+    /**
+     * Obtiene el nivel actual del estudiante desde las tablas student_level y level_system
+     * @param studentProfileId ID del perfil del estudiante
+     * @return Nivel del estudiante (1 por defecto si no existe)
+     */
+    private Integer getStudentLevel(Long studentProfileId) {
+        try {
+            String sql = """
+                SELECT ls.level_number
+                FROM student_level sl
+                JOIN level_system ls ON sl.level_system_id = ls.id
+                WHERE sl.student_profile_id = ?
+                """;
+            
+            Integer level = jdbcTemplate.queryForObject(sql, new Object[]{studentProfileId}, Integer.class);
+            return level != null ? level : 1;
+        } catch (Exception e) {
+            System.err.println("Error obteniendo nivel del estudiante " + studentProfileId + ": " + e.getMessage());
+            return 1; // Nivel por defecto
+        }
+    }
+    
+    /**
+     * Obtiene los logros recientes del estudiante usando el stored procedure existente
+     * @param userId ID del usuario
+     * @param limit Número máximo de logros a retornar
+     * @return Lista de logros recientes
+     */
+    private List<UserResponseDto.AchievementSummaryDto> getRecentStudentAchievements(Long userId, int limit) {
+        try {
+            String sql = """
+                SELECT TOP ? 
+                    sa.id,
+                    a.achievement_name,
+                    a.achievement_description,
+                    a.points_value,
+                    rt.rarity_name,
+                    sa.earned_at
+                FROM student_achievement sa
+                LEFT JOIN achievement a ON a.id = sa.achievement_id
+                LEFT JOIN achievement_type aty ON aty.id = a.achievement_type_id
+                LEFT JOIN rarity_tier rt ON rt.id = a.rarity_tier_id
+                LEFT JOIN student_profile sp ON sp.id = sa.student_profile_id
+                WHERE sp.user_id = ?
+                    AND a.is_active = 1
+                    AND sa.is_active = 1
+                ORDER BY sa.earned_at DESC
+                """;
+            
+            return jdbcTemplate.query(sql, new Object[]{limit, userId}, (rs, rowNum) -> 
+                UserResponseDto.AchievementSummaryDto.builder()
+                    .id(rs.getLong("id"))
+                    .name(rs.getString("achievement_name"))
+                    .description(rs.getString("achievement_description"))
+                    .pointsValue(rs.getInt("points_value"))
+                    .rarityTier(rs.getString("rarity_name"))
+                    .earnedAt(rs.getTimestamp("earned_at") != null ? 
+                             rs.getTimestamp("earned_at").toLocalDateTime() : null)
+                    .build()
+            );
+        } catch (Exception e) {
+            System.err.println("Error obteniendo logros recientes del usuario " + userId + ": " + e.getMessage());
+            return new ArrayList<>();
+        }
+    }
+    
+    @Override
+    public Integer executeCountQuery(String sql, Object... params) {
+        try {
+            return jdbcTemplate.queryForObject(sql, Integer.class, params);
+        } catch (Exception e) {
+            System.err.println("Error ejecutando consulta de conteo: " + e.getMessage());
+            return 0;
+        }
+    }
+
+    @Override
+    public java.sql.Timestamp executeTimestampQuery(String sql, Object... params) {
+        try {
+            return jdbcTemplate.queryForObject(sql, java.sql.Timestamp.class, params);
+        } catch (Exception e) {
+            System.err.println("Error ejecutando consulta de timestamp: " + e.getMessage());
+            return null;
+        }
+    }
+
+    @Override
+    public String executeStringQuery(String sql, Object... params) {
+        try {
+            return jdbcTemplate.queryForObject(sql, String.class, params);
+        } catch (Exception e) {
+            System.err.println("Error ejecutando consulta de string: " + e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Obtiene el nombre del área STEM por ID
+     * @param stemAreaId ID del área STEM
+     * @return Nombre del área STEM
+     */
+    private String getStemAreaName(Byte stemAreaId) {
+        if (stemAreaId == null) {
+            return "Área no definida";
+        }
+        
+        try {
+            String sql = "SELECT title FROM stem_area WHERE id = ? AND status = 1";
+            String stemAreaName = jdbcTemplate.queryForObject(sql, new Object[]{stemAreaId.intValue()}, String.class);
+            return stemAreaName != null ? stemAreaName : "Área no definida";
+        } catch (Exception e) {
+            System.err.println("Error obteniendo nombre del área STEM " + stemAreaId + ": " + e.getMessage());
+            return "Área no definida";
+        }
+    }
+
+    @Override
+    public List<UserResponseDto.BasicUserResponseDto> searchUsersInTeacherScope(Long teacherUserId, String searchTerm, String roleFilter, int limit) {
+        try {
+            // Consulta SQL que busca usuarios limitados al scope del profesor
+            // Solo busca estudiantes que están en las clases del profesor
+            String sql = """
+                SELECT TOP ? u.id, u.first_name, u.last_name, u.email, u.profile_picture_url, 
+                       u.role_id, r.name as role_name, u.status, u.last_login_at, u.created_at,
+                       sp.username as student_username
+                FROM [user] u 
+                JOIN role r ON u.role_id = r.id 
+                JOIN student_profile sp ON sp.user_id = u.id
+                JOIN enrollment e ON e.student_profile_id = sp.id
+                JOIN classroom c ON c.id = e.classroom_id
+                JOIN teacher_profile tp ON tp.id = c.teacher_profile_id
+                WHERE tp.user_id = ?
+                  AND (u.first_name LIKE ? OR u.last_name LIKE ? OR u.email LIKE ? OR sp.username LIKE ?)
+                  AND e.status = 1
+                  AND u.status = 1
+                """;
+            
+            List<Object> params = new ArrayList<>();
+            params.add(limit);
+            params.add(teacherUserId);
+            params.add("%" + searchTerm + "%");
+            params.add("%" + searchTerm + "%");
+            params.add("%" + searchTerm + "%");
+            params.add("%" + searchTerm + "%");
+            
+            // Agregar filtro de rol si se especifica
+            if (roleFilter != null && !roleFilter.isEmpty()) {
+                sql += " AND r.name = ?";
+                params.add(roleFilter);
+            }
+            
+            sql += " ORDER BY u.first_name, u.last_name";
+            
+            System.out.println("🔍 Ejecutando consulta searchUsersInTeacherScope:");
+            System.out.println("SQL: " + sql);
+            System.out.println("Parámetros: " + params);
+            
+            List<UserResponseDto.BasicUserResponseDto> result = jdbcTemplate.query(sql, params.toArray(), (rs, rowNum) -> 
+                UserResponseDto.BasicUserResponseDto.builder()
+                    .id(rs.getLong("id"))
+                    .firstName(rs.getString("first_name"))
+                    .lastName(rs.getString("last_name"))
+                    .fullName(rs.getString("first_name") + " " + rs.getString("last_name"))
+                    .email(rs.getString("email"))
+                    .profilePictureUrl(rs.getString("profile_picture_url"))
+                    .roleName(rs.getString("role_name"))
+                    .status(DatabaseUtils.safeToBoolean(rs.getObject("status")))
+                    .lastLoginAt(rs.getTimestamp("last_login_at") != null ? 
+                                rs.getTimestamp("last_login_at").toLocalDateTime() : null)
+                    .createdAt(rs.getTimestamp("created_at") != null ? 
+                              rs.getTimestamp("created_at").toLocalDateTime() : null)
+                    .build()
+            );
+            
+            System.out.println("📊 Resultado searchUsersInTeacherScope: " + result.size() + " usuarios encontrados");
+            return result;
+        } catch (Exception e) {
+            System.err.println("❌ Error searching users in teacher scope: " + e.getMessage());
+            e.printStackTrace();
+            return new ArrayList<>();
         }
     }
 } 
