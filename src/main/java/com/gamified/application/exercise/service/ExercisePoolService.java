@@ -181,14 +181,16 @@ public class ExercisePoolService {
         // 3. Calcular hash de la respuesta correcta
         String correctAnswerHash = calculateCorrectAnswerHash(aiJsonResponse);
         
-        // 4. Crear y persistir la entidad
+        // 4. Crear y persistir la entidad usando los nombres de campo correctos del esquema real
         GeneratedExercise generatedExercise = GeneratedExercise.builder()
                 .exerciseTemplateId(template.getId())
-                .generatedContentJson(aiJsonResponse)
-                .correctAnswerHash(correctAnswerHash)
-                .generationPrompt(prompt)
-                .aiModelVersion(azureAiClient.getModelVersion())
-                .createdAt(LocalDateTime.now())
+                // Nota: En el esquema real no hay student_profile_id en generated_exercise
+                // Los ejercicios del pool son genéricos
+                .generatedContentJson(aiJsonResponse) // Campo real: generated_content_json
+                .correctAnswerHash(correctAnswerHash) // Campo real: correct_answer_hash
+                .generationPrompt(prompt) // Campo real: generation_prompt
+                .aiModelVersion(azureAiClient.getModelVersion()) // Campo real: ai_model_version
+                .createdAt(LocalDateTime.now()) // Campo real: created_at
                 .build();
 
         Long savedId = generatedExerciseRepository.save(generatedExercise);

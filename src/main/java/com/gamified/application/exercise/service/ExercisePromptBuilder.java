@@ -36,112 +36,22 @@ public class ExercisePromptBuilder {
         Optional<LearningPoint> learningPointOpt = learningRepository
                 .findLearningPointById(exerciseTemplate.getLearningPointId());
         
-        String learningPointTitle = learningPointOpt.map(LearningPoint::getTitle).orElse("Matemáticas");
-        String learningPointDescription = learningPointOpt.map(LearningPoint::getDescription).orElse("");
+        String learningPointTitle = learningPointOpt.map(LearningPoint::getTitle).orElse("Matematicas");
+        String difficulty = exerciseTemplate.getDifficulty() != null ? exerciseTemplate.getDifficulty() : "level_1";
 
-        // Obtener historial del estudiante para personalización
-        String studentContext = buildStudentContext(studentId, exerciseTemplate.getLearningPointId());
+        // Construir prompt ESPECÍFICO y CLARO para generar ejercicios completos
+        String prompt = String.format(
+            "Crea un ejercicio de %s dificultad %s. Genera 4 opciones completas y realistas. " +
+            "EJEMPLO para fracciones: {\"question\": \"Cual es el resultado de 1/2 + 1/4?\", " +
+            "\"correct_answer\": \"3/4\", \"options\": [\"3/4\", \"2/6\", \"1/3\", \"2/4\"], " +
+            "\"explanation\": \"Para sumar fracciones: 1/2 + 1/4 = 2/4 + 1/4 = 3/4\"}. " +
+            "Usa comillas dobles, opciones realistas, no solo letras A B C D.",
+            cleanText(learningPointTitle), 
+            difficulty
+        );
 
-        // Construir el prompt principal
-        StringBuilder prompt = new StringBuilder();
-        
-        prompt.append("Genera un ejercicio educativo de matemáticas con las siguientes especificaciones:\n\n");
-        
-        // Contexto del learning point
-        prompt.append("**CONTEXTO EDUCATIVO:**\n");
-        prompt.append("- Tema: ").append(learningPointTitle).append("\n");
-        if (!learningPointDescription.isEmpty()) {
-            prompt.append("- Descripción: ").append(learningPointDescription).append("\n");
-        }
-        prompt.append("- Dificultad: ").append(exerciseTemplate.getDifficulty()).append("\n");
-        prompt.append("- Tiempo estimado: ").append(exerciseTemplate.getEstimatedTimeMinutes()).append(" minutos\n\n");
-
-        // Contexto del estudiante
-        if (!studentContext.isEmpty()) {
-            prompt.append("**CONTEXTO DEL ESTUDIANTE:**\n");
-            prompt.append(studentContext).append("\n\n");
-        }
-
-        // Especificaciones del ejercicio
-        prompt.append("**ESPECIFICACIONES DEL EJERCICIO:**\n");
-        prompt.append("- Título base: ").append(exerciseTemplate.getTitle()).append("\n");
-        if (exerciseTemplate.getQuestionText() != null && !exerciseTemplate.getQuestionText().isEmpty()) {
-            prompt.append("- Tipo de pregunta: ").append(exerciseTemplate.getQuestionText()).append("\n");
-        }
-        prompt.append("- Debe ser único y no repetir ejercicios anteriores del estudiante\n");
-        prompt.append("- Nivel de dificultad apropiado para el progreso actual del estudiante\n\n");
-
-        // Formato de respuesta requerido
-        prompt.append("**FORMATO DE RESPUESTA REQUERIDO (JSON):**\n");
-        prompt.append("Responde ÚNICAMENTE con el siguiente JSON válido, sin texto adicional:\n\n");
-        prompt.append("{\n");
-        prompt.append("  \"question\": \"[Enunciado completo del ejercicio]\",\n");
-        prompt.append("  \"question_type\": \"[multiple_choice|numeric|text|true_false]\",\n");
-        prompt.append("  \"correct_answer\": \"[Respuesta correcta]\",\n");
-        prompt.append("  \"options\": [\"opción1\", \"opción2\", \"opción3\", \"opción4\"], // Solo para multiple_choice\n");
-        prompt.append("  \"explanation\": \"[Explicación de la solución paso a paso]\",\n");
-        prompt.append("  \"hints\": [\"pista1\", \"pista2\", \"pista3\"],\n");
-        prompt.append("  \"difficulty_level\": \"").append(exerciseTemplate.getDifficulty()).append("\",\n");
-        prompt.append("  \"estimated_time_minutes\": ").append(exerciseTemplate.getEstimatedTimeMinutes()).append(",\n");
-        prompt.append("  \"learning_objectives\": [\"objetivo1\", \"objetivo2\"],\n");
-        prompt.append("  \"tags\": [\"tag1\", \"tag2\"]\n");
-        prompt.append("}\n\n");
-
-        // Instrucciones adicionales
-        prompt.append("**INSTRUCCIONES IMPORTANTES:**\n");
-        prompt.append("- La pregunta debe ser clara y sin ambigüedades\n");
-        prompt.append("- Las opciones (si aplica) deben ser plausibles pero solo una correcta\n");
-        prompt.append("- La explicación debe ser educativa y fácil de entender\n");
-        prompt.append("- Las pistas deben guiar al estudiante sin dar la respuesta directa\n");
-        prompt.append("- Usa vocabulario apropiado para el nivel educativo\n");
-        prompt.append("- El ejercicio debe fomentar el pensamiento crítico\n");
-
-        String finalPrompt = prompt.toString();
-        log.debug("Prompt construido. Longitud: {} caracteres", finalPrompt.length());
-        
-        return finalPrompt;
-    }
-
-    /**
-     * Construye contexto específico del estudiante para personalizar el ejercicio
-     */
-    private String buildStudentContext(Integer studentId, Integer learningPointId) {
-        StringBuilder context = new StringBuilder();
-        
-        try {
-            // Obtener estadísticas de rendimiento del estudiante
-            Optional<ExerciseRepository.StudentExerciseStats> statsOpt = 
-                    exerciseRepository.getStudentExerciseStats(studentId);
-            
-            if (statsOpt.isPresent()) {
-                ExerciseRepository.StudentExerciseStats stats = statsOpt.get();
-                
-                context.append("- Ejercicios completados: ").append(stats.getTotalExercisesCompleted()).append("\n");
-                context.append("- Promedio de puntuación: ").append(String.format("%.1f", stats.getAverageScore())).append("\n");
-                context.append("- Dificultad preferida: ").append(stats.getPreferredDifficulty()).append("\n");
-                
-                // Agregar información sobre áreas de fortaleza o debilidad
-                if (stats.getAverageScore() < 60) {
-                    context.append("- Nota: El estudiante necesita ejercicios con más apoyo y explicaciones detalladas\n");
-                } else if (stats.getAverageScore() > 85) {
-                    context.append("- Nota: El estudiante está listo para desafíos más complejos\n");
-                }
-            }
-
-            // Obtener intentos recientes en este learning point
-            Integer recentAttempts = exerciseRepository.countRecentAttemptsByStudentAndLearningPoint(
-                    studentId, learningPointId, 7); // últimos 7 días
-            
-            if (recentAttempts > 0) {
-                context.append("- Intentos recientes en este tema: ").append(recentAttempts).append("\n");
-            }
-
-        } catch (Exception e) {
-            log.warn("Error al construir contexto del estudiante {}", studentId, e);
-            // Continuar sin contexto específico
-        }
-        
-        return context.toString();
+        log.debug("Prompt construido. Longitud: {} caracteres", prompt.length());
+        return prompt;
     }
 
     /**
@@ -155,32 +65,63 @@ public class ExercisePromptBuilder {
         Optional<LearningPoint> learningPointOpt = learningRepository
                 .findLearningPointById(exerciseTemplate.getLearningPointId());
         
-        String learningPointTitle = learningPointOpt.map(LearningPoint::getTitle).orElse("Matemáticas");
+        String learningPointTitle = learningPointOpt.map(LearningPoint::getTitle).orElse("Matematicas");
+        String difficulty = exerciseTemplate.getDifficulty() != null ? exerciseTemplate.getDifficulty() : "level_1";
 
-        StringBuilder prompt = new StringBuilder();
+        // Prompt ULTRA SIMPLE para pool
+        String prompt = String.format(
+            "Crea ejercicio de %s nivel %s. " +
+            "Responde JSON: {\"question\": \"texto\", \"correct_answer\": \"respuesta\", " +
+            "\"options\": [\"A\", \"B\", \"C\", \"D\"], \"explanation\": \"explicacion\"}. " +
+            "Solo ASCII, sin acentos, una linea.",
+            cleanText(learningPointTitle),
+            difficulty
+        );
+
+        return prompt;
+    }
+
+    /**
+     * Limpia texto removiendo caracteres problemáticos
+     */
+    private String cleanText(String text) {
+        if (text == null) return "texto";
         
-        prompt.append("Genera un ejercicio educativo de matemáticas para el pool de ejercicios:\n\n");
-        prompt.append("**ESPECIFICACIONES:**\n");
-        prompt.append("- Tema: ").append(learningPointTitle).append("\n");
-        prompt.append("- Dificultad: ").append(exerciseTemplate.getDifficulty()).append("\n");
-        prompt.append("- Tipo: ").append(exerciseTemplate.getTitle()).append("\n");
-        prompt.append("- Tiempo estimado: ").append(exerciseTemplate.getEstimatedTimeMinutes()).append(" minutos\n\n");
+        return text
+            .replaceAll("[áàäâã]", "a")
+            .replaceAll("[éèëê]", "e") 
+            .replaceAll("[íìïî]", "i")
+            .replaceAll("[óòöôõ]", "o")
+            .replaceAll("[úùüû]", "u")
+            .replaceAll("[ñ]", "n")
+            .replaceAll("[ÁÀÄÂÃ]", "A")
+            .replaceAll("[ÉÈËÊ]", "E")
+            .replaceAll("[ÍÌÏÎ]", "I") 
+            .replaceAll("[ÓÒÖÔÕ]", "O")
+            .replaceAll("[ÚÙÜÛ]", "U")
+            .replaceAll("[Ñ]", "N")
+            .replaceAll("[^a-zA-Z0-9 ]", " ")
+            .replaceAll("\\s+", " ")
+            .trim();
+    }
 
-        // Usar el mismo formato de respuesta JSON
-        prompt.append("**FORMATO DE RESPUESTA (JSON):**\n");
-        prompt.append("{\n");
-        prompt.append("  \"question\": \"[Enunciado del ejercicio]\",\n");
-        prompt.append("  \"question_type\": \"[multiple_choice|numeric|text|true_false]\",\n");
-        prompt.append("  \"correct_answer\": \"[Respuesta correcta]\",\n");
-        prompt.append("  \"options\": [\"opción1\", \"opción2\", \"opción3\", \"opción4\"],\n");
-        prompt.append("  \"explanation\": \"[Explicación paso a paso]\",\n");
-        prompt.append("  \"hints\": [\"pista1\", \"pista2\", \"pista3\"],\n");
-        prompt.append("  \"difficulty_level\": \"").append(exerciseTemplate.getDifficulty()).append("\",\n");
-        prompt.append("  \"estimated_time_minutes\": ").append(exerciseTemplate.getEstimatedTimeMinutes()).append("\n");
-        prompt.append("}\n\n");
-
-        prompt.append("Genera contenido único y educativo. Responde SOLO con JSON válido.");
-
-        return prompt.toString();
+    /**
+     * Construye contexto específico del estudiante para personalizar el ejercicio
+     */
+    private String buildStudentContext(Integer studentId, Integer learningPointId) {
+        // Contexto simplificado - solo información esencial
+        try {
+            Optional<ExerciseRepository.StudentExerciseStats> statsOpt = 
+                    exerciseRepository.getStudentExerciseStats(studentId);
+            
+            if (statsOpt.isPresent()) {
+                ExerciseRepository.StudentExerciseStats stats = statsOpt.get();
+                return String.format("Estudiante nivel: %.0f puntos promedio", stats.getAverageScore());
+            }
+        } catch (Exception e) {
+            log.warn("Error al construir contexto del estudiante {}", studentId, e);
+        }
+        
+        return "";
     }
 }

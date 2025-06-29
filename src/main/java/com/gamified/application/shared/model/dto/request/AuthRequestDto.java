@@ -69,7 +69,7 @@ public class AuthRequestDto {
 
         @NotNull(message = "El rol es obligatorio")
         @Min(value = 1, message = "Debe seleccionar un rol válido")
-        @Max(value = 3, message = "Debe seleccionar un rol válido")
+        @Max(value = 4, message = "Debe seleccionar un rol válido")
         private Long roleId;
 
         @NotNull(message = "La institución es obligatoria")

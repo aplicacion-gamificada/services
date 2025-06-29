@@ -1,8 +1,11 @@
 package com.gamified.application.exercise.service;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gamified.application.exercise.model.dto.response.GeneratedExerciseResponseDto;
+import com.gamified.application.exercise.model.dto.response.ExerciseResponseDto;
 import com.gamified.application.exercise.model.entity.Exercise;
+import com.gamified.application.exercise.model.entity.ExerciseType;
 import com.gamified.application.exercise.model.entity.GeneratedExercise;
 import com.gamified.application.exercise.repository.ExerciseRepository;
 import com.gamified.application.exercise.repository.GeneratedExerciseRepository;
@@ -18,6 +21,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -37,8 +41,8 @@ public class GeneratedExerciseService {
     private final ObjectMapper objectMapper;
 
     /**
-     * Obtiene el siguiente ejercicio para un estudiante, usando el pool de ejercicios pre-generados
-     * o generando uno nuevo con IA si es necesario
+     * Obtiene el siguiente ejercicio para un estudiante, generando dinámicamente con IA
+     * según el flujo descrito en la guía de implementación
      * 
      * @param studentId ID del estudiante
      * @param learningPointId ID del learning point
@@ -46,33 +50,21 @@ public class GeneratedExerciseService {
      * @return Ejercicio generado listo para presentar al estudiante
      */
     @Transactional
-    public GeneratedExerciseResponseDto.GeneratedExerciseDto getNextExercise(
+    public ExerciseResponseDto.NextExerciseDto getNextExercise(
             Integer studentId, Integer learningPointId, String preferredDifficulty) {
         
-        log.info("Obteniendo siguiente ejercicio generado para estudiante {} en learning point {}", 
+        log.info("Generando ejercicio dinámico con IA para estudiante {} en learning point {}", 
                 studentId, learningPointId);
 
         // 1. Determinar la plantilla de ejercicio apropiada
         Exercise exerciseTemplate = determineExerciseTemplate(studentId, learningPointId, preferredDifficulty);
         
-        // 2. Intentar obtener un ejercicio del pool pre-generado
-        Optional<GeneratedExercise> poolExerciseOpt = getFromExercisePool(exerciseTemplate.getId());
-        
-        GeneratedExercise generatedExercise;
-        boolean fromPool = poolExerciseOpt.isPresent();
-        
-        if (fromPool) {
-            // 3a. Usar ejercicio del pool (rápido y barato)
-            generatedExercise = poolExerciseOpt.get();
-            log.info("Ejercicio obtenido del pool pre-generado. ID: {}", generatedExercise.getId());
-        } else {
-            // 3b. Generar nuevo ejercicio con IA (lento y costoso)
-            generatedExercise = generateNewExercise(exerciseTemplate, studentId);
-            log.info("Nuevo ejercicio generado con IA. ID: {}", generatedExercise.getId());
-        }
+        // 2. Generar nuevo ejercicio dinámicamente con IA (siguiendo la guía)
+        GeneratedExercise generatedExercise = generateNewExercise(exerciseTemplate, studentId);
+        log.info("Nuevo ejercicio generado dinámicamente con IA. ID: {}", generatedExercise.getId());
 
-        // 4. Mapear a DTO de respuesta
-        return mapToGeneratedExerciseDto(generatedExercise, exerciseTemplate, fromPool);
+        // 3. Mapear a DTO de respuesta con formato completo según la guía
+        return mapToNextExerciseDto(generatedExercise, exerciseTemplate);
     }
 
     /**
@@ -135,14 +127,16 @@ public class GeneratedExerciseService {
             // 4. Calcular hash de la respuesta correcta (opcional pero útil)
             String correctAnswerHash = calculateCorrectAnswerHash(aiJsonResponse);
             
-            // 5. Crear y persistir la entidad GeneratedExercise
+            // 5. Crear y persistir la entidad GeneratedExercise usando los nombres de campo correctos
             GeneratedExercise generatedExercise = GeneratedExercise.builder()
                     .exerciseTemplateId(exerciseTemplate.getId())
-                    .generatedContentJson(aiJsonResponse)
-                    .correctAnswerHash(correctAnswerHash)
-                    .generationPrompt(prompt)
-                    .aiModelVersion(azureAiClient.getModelVersion())
-                    .createdAt(LocalDateTime.now())
+                    // Nota: En el esquema real no hay student_profile_id en generated_exercise
+                    // Los ejercicios generados son genéricos y se asignan en exercise_attempt
+                    .generatedContentJson(aiJsonResponse) // Campo real: generated_content_json
+                    .correctAnswerHash(correctAnswerHash) // Campo real: correct_answer_hash
+                    .generationPrompt(prompt) // Campo real: generation_prompt
+                    .aiModelVersion(azureAiClient.getModelVersion()) // Campo real: ai_model_version
+                    .createdAt(LocalDateTime.now()) // Campo real: created_at
                     .exerciseTemplate(exerciseTemplate)
                     .build();
 
@@ -211,28 +205,148 @@ public class GeneratedExerciseService {
     }
 
     /**
-     * Mapea GeneratedExercise a DTO de respuesta
+     * Mapea GeneratedExercise a DTO de respuesta con formato completo según la guía
      */
-    private GeneratedExerciseResponseDto.GeneratedExerciseDto mapToGeneratedExerciseDto(
-            GeneratedExercise generatedExercise, Exercise exerciseTemplate, boolean fromPool) {
+    private ExerciseResponseDto.NextExerciseDto mapToNextExerciseDto(
+            GeneratedExercise generatedExercise, Exercise exerciseTemplate) {
         
-        // Obtener información del learning point
-        Optional<LearningPoint> learningPointOpt = learningRepository
-                .findLearningPointById(exerciseTemplate.getLearningPointId());
-        String learningPointTitle = learningPointOpt.map(LearningPoint::getTitle).orElse("Learning Point");
+        try {
+            // 1. Obtener información del learning point
+            Optional<LearningPoint> learningPointOpt = learningRepository
+                    .findLearningPointById(exerciseTemplate.getLearningPointId());
+            LearningPoint learningPoint = learningPointOpt.orElseThrow(() -> 
+                    new ResourceNotFoundException("Learning point no encontrado"));
 
-        return GeneratedExerciseResponseDto.GeneratedExerciseDto.builder()
-                .generatedExerciseId(generatedExercise.getId())
-                .exerciseTemplateId(generatedExercise.getExerciseTemplateId())
-                .exerciseContent(generatedExercise.getGeneratedContentJson())
-                .exerciseType(exerciseTemplate.getTitle()) // o buscar el nombre del tipo
-                .difficulty(exerciseTemplate.getDifficulty())
-                .estimatedTimeMinutes(exerciseTemplate.getEstimatedTimeMinutes())
-                .pointsValue(100) // o calcularlo dinámicamente
-                .learningPointTitle(learningPointTitle)
-                .generatedAt(generatedExercise.getCreatedAt())
-                .aiModelVersion(generatedExercise.getAiModelVersion())
+            // 2. Parsear el contenido JSON generado por la IA
+            Map<String, Object> aiContent = objectMapper.readValue(
+                    generatedExercise.getGeneratedContentJson(), 
+                    new TypeReference<Map<String, Object>>() {});
+
+            // 3. Obtener información del tipo de ejercicio
+            Optional<ExerciseType> exerciseTypeOpt = exerciseRepository
+                    .findExerciseTypeById(exerciseTemplate.getExerciseTypeId());
+            String exerciseTypeName = exerciseTypeOpt
+                    .map(ExerciseType::getName)
+                    .orElse("multiple_choice");
+
+            // 4. Determinar render_variant según el tipo de ejercicio
+            String renderVariant = determineRenderVariant(exerciseTypeName);
+
+            // 5. Construir configuración del ejercicio según GUIA.md
+            ExerciseResponseDto.ExerciseConfigDto config = buildExerciseConfig(
+                    exerciseTypeName, exerciseTemplate, aiContent);
+
+            // 6. Construir contenido del ejercicio
+            ExerciseResponseDto.ExerciseContentDto content = buildExerciseContent(aiContent);
+
+            // 7. Verificar intentos previos del estudiante en esta plantilla
+            // TODO: Implementar lógica para obtener studentId y consultar intentos previos
+            Boolean hasAttempts = false;
+            Integer previousAttempts = 0;
+
+            // 8. Construir respuesta completa según estructura de GUIA.md
+            return ExerciseResponseDto.NextExerciseDto.builder()
+                    .generatedExerciseId(generatedExercise.getId())
+                    .exerciseTemplateId(exerciseTemplate.getId())
+                    .exerciseType(exerciseTypeName)
+                    .renderVariant(renderVariant)
+                    .difficultyLevel(exerciseTemplate.getDifficulty())
+                    .config(config)
+                    .content(content)
+                    .learningPointId(learningPoint.getId())
+                    .learningPointTitle(learningPoint.getTitle())
+                    .hasAttempts(hasAttempts)
+                    .previousAttempts(previousAttempts)
+                    .build();
+
+        } catch (Exception e) {
+            log.error("Error construyendo respuesta de ejercicio: {}", e.getMessage(), e);
+            throw new RuntimeException("Error procesando contenido del ejercicio: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Determina el render_variant según el tipo de ejercicio
+     */
+    private String determineRenderVariant(String exerciseType) {
+        return switch (exerciseType.toLowerCase()) {
+            case "multiple_choice", "múltiple_opción" -> "radio-buttons";
+            case "drag_and_drop", "arrastrar_soltar" -> "drag-to-sort";
+            case "numeric_input", "entrada_numérica" -> "number-input";
+            case "text_input", "entrada_texto" -> "text-area";
+            case "true_false", "verdadero_falso" -> "toggle-buttons";
+            case "ordering", "ordenamiento" -> "sortable-list";
+            case "matching", "emparejamiento" -> "connect-pairs";
+            case "fill_blanks", "llenar_espacios" -> "input-blanks";
+            default -> "default-renderer";
+        };
+    }
+
+    /**
+     * Construye la configuración del ejercicio según el tipo y GUIA.md
+     */
+    private ExerciseResponseDto.ExerciseConfigDto buildExerciseConfig(
+            String exerciseType, Exercise exerciseTemplate, Map<String, Object> aiContent) {
+        
+        // Configuración base
+        ExerciseResponseDto.ExerciseConfigDto.ExerciseConfigDtoBuilder configBuilder = 
+                ExerciseResponseDto.ExerciseConfigDto.builder()
+                .showTimer(true)
+                .allowPartialScore(true)
+                .showHints(true)
+                .allowRetry(false);
+
+        // Configuración específica por tipo
+        switch (exerciseType.toLowerCase()) {
+            case "drag_and_drop", "arrastrar_soltar" -> {
+                configBuilder
+                    .maxTime(90)
+                    .itemCount(getItemCount(aiContent))
+                    .shuffleItems(true);
+            }
+            case "multiple_choice", "múltiple_opción" -> {
+                configBuilder
+                    .maxTime(60)
+                    .shuffleItems(true);
+            }
+            case "numeric_input", "entrada_numérica" -> {
+                configBuilder
+                    .maxTime(120)
+                    .allowPartialScore(false);
+            }
+            default -> {
+                configBuilder
+                    .maxTime(exerciseTemplate.getEstimatedTimeMinutes() * 60);
+            }
+        }
+
+        return configBuilder.build();
+    }
+
+    /**
+     * Construye el contenido del ejercicio desde el JSON de la IA
+     */
+    private ExerciseResponseDto.ExerciseContentDto buildExerciseContent(Map<String, Object> aiContent) {
+        return ExerciseResponseDto.ExerciseContentDto.builder()
+                .title((String) aiContent.get("question"))
+                .instructions((String) aiContent.getOrDefault("instructions", "Selecciona la respuesta correcta"))
+                .options(aiContent.get("options"))
+                .correctAnswer(aiContent.get("correct_answer"))
+                .explanation((String) aiContent.get("explanation"))
+                .hints((List<String>) aiContent.get("hints"))
+                .imageUrl((String) aiContent.get("image_url"))
                 .build();
+    }
+
+    /**
+     * Obtiene el número de elementos del contenido de IA
+     */
+    private Integer getItemCount(Map<String, Object> aiContent) {
+        Object options = aiContent.get("options");
+        if (options instanceof List) {
+            return ((List<?>) options).size();
+        }
+        return 4; // Default
     }
 
     /**

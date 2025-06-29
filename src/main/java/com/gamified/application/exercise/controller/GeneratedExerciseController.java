@@ -1,6 +1,7 @@
 package com.gamified.application.exercise.controller;
 
 import com.gamified.application.exercise.model.dto.response.GeneratedExerciseResponseDto;
+import com.gamified.application.exercise.model.dto.response.ExerciseResponseDto;
 import com.gamified.application.exercise.service.GeneratedExerciseService;
 import com.gamified.application.exercise.service.ExercisePoolService;
 import com.gamified.application.shared.model.dto.ApiResponse;
@@ -46,7 +47,7 @@ public class GeneratedExerciseController {
                 studentId, learningPointId);
 
         try {
-            GeneratedExerciseResponseDto.GeneratedExerciseDto exercise = 
+            ExerciseResponseDto.NextExerciseDto exercise = 
                     generatedExerciseService.getNextExercise(studentId, learningPointId, difficulty);
 
             return ResponseEntity.ok(new ApiResponse(true, "Ejercicio generado exitosamente", 

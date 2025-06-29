@@ -227,10 +227,15 @@ public class LearningRepositoryImpl implements LearningRepository {
             MapSqlParameterSource parameters = new MapSqlParameterSource();
             parameters.addValue("unit_id", unitId, Types.INTEGER);
 
-            String sql = "SELECT TOP 100 id, units_id, title, description, sequence_order, " +
-                        "estimated_duration, difficulty_weight, mastery_threshold, " +
-                        "is_prerequisite, unlock_criteria, status, created_at, updated_at " +
-                        "FROM learning_point WHERE units_id = :unit_id AND status = 1 ORDER BY sequence_order";
+            // Según el modelo UML: learning_point -> learning_path -> units
+            // Necesitamos hacer JOIN para obtener learning_points a través de learning_path
+            String sql = "SELECT TOP 100 lp.id, lp.learning_path_id, lp.title, lp.description, lp.sequence_order, " +
+                        "lp.estimated_duration, lp.difficulty_weight, lp.mastery_threshold, " +
+                        "lp.is_prerequisite, lp.unlock_criteria, lp.status, lp.created_at, lp.updated_at " +
+                        "FROM learning_point lp " +
+                        "INNER JOIN learning_path path ON lp.learning_path_id = path.id " +
+                        "WHERE path.units_id = :unit_id AND lp.status = 1 " +
+                        "ORDER BY lp.sequence_order";
             
             List<Map<String, Object>> results = namedParameterJdbcTemplate.queryForList(sql, parameters);
             
@@ -252,7 +257,7 @@ public class LearningRepositoryImpl implements LearningRepository {
             MapSqlParameterSource parameters = new MapSqlParameterSource();
             parameters.addValue("learning_point_id", learningPointId, Types.INTEGER);
 
-            String sql = "SELECT id, units_id, title, description, sequence_order, " +
+            String sql = "SELECT id, learning_path_id, title, description, sequence_order, " +
                         "estimated_duration, difficulty_weight, mastery_threshold, " +
                         "is_prerequisite, unlock_criteria, status, created_at, updated_at " +
                         "FROM learning_point WHERE id = :learning_point_id";
@@ -426,7 +431,10 @@ public class LearningRepositoryImpl implements LearningRepository {
             MapSqlParameterSource parameters = new MapSqlParameterSource();
             parameters.addValue("unit_id", unitId, Types.INTEGER);
 
-            String sql = "SELECT COUNT(*) FROM learning_point WHERE units_id = :unit_id AND status = 1";
+            // Según el modelo UML: learning_point -> learning_path -> units
+            String sql = "SELECT COUNT(*) FROM learning_point lp " +
+                        "INNER JOIN learning_path path ON lp.learning_path_id = path.id " +
+                        "WHERE path.units_id = :unit_id AND lp.status = 1";
             
             Integer count = namedParameterJdbcTemplate.queryForObject(sql, parameters, Integer.class);
             return count != null ? count : 0;
@@ -513,7 +521,7 @@ public class LearningRepositoryImpl implements LearningRepository {
     private LearningPoint mapLearningPointFromResultMap(Map<String, Object> data) {
         return LearningPoint.builder()
                 .id((Integer) data.get("id"))
-                .learningPathId((Integer) data.get("learning_point_id"))
+                .learningPathId((Integer) data.get("learning_path_id"))
                 .title((String) data.get("title"))
                 .description((String) data.get("description"))
                 .sequenceOrder((Integer) data.get("sequence_order"))

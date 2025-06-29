@@ -479,16 +479,114 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     }
     
     @Override
+    @Transactional
     public CommonResponseDto register(AuthRequestDto.RegisterRequestDto registerRequest) {
-        return CommonResponseDto.builder()
-                .success(true)
-                .message("Usuario registrado correctamente")
-                .build();
+        try {
+            log.info("Starting user registration for email: {}", registerRequest.getEmail());
+            
+            // Validar que las contraseñas coincidan
+            if (!registerRequest.isPasswordConfirmed()) {
+                return CommonResponseDto.builder()
+                        .success(false)
+                        .message("Las contraseñas no coinciden")
+                        .build();
+            }
+            
+            // Verificar si el email ya existe
+            Optional<User> existingUser = userRepository.findByEmail(registerRequest.getEmail());
+            if (existingUser.isPresent()) {
+                log.warn("Registration attempt with existing email: {}", registerRequest.getEmail());
+                return CommonResponseDto.builder()
+                        .success(false)
+                        .message("Ya existe un usuario con este email")
+                        .build();
+            }
+            
+            // Hash de la contraseña
+            String hashedPassword = passwordService.hashPassword(registerRequest.getPassword());
+            
+            // Crear el usuario usando el constructor
+            User newUser = new User(
+                null, // id será generado automáticamente
+                registerRequest.getFirstName(),
+                registerRequest.getLastName(),
+                registerRequest.getEmail(),
+                hashedPassword,
+                null, // profilePictureUrl
+                true, // status
+                false, // emailVerified
+                null, // emailVerificationToken
+                null, // emailVerificationExpiresAt
+                null, // passwordResetToken
+                null, // passwordResetExpiresAt
+                null, // lastLoginAt
+                null, // lastLoginIp
+                0, // failedLoginAttempts
+                null, // accountLockedUntil
+                null, // createdAt (se establecerá automáticamente)
+                null, // updatedAt (se establecerá automáticamente)
+                registerRequest.getRoleId().byteValue(), // roleId
+                registerRequest.getInstitutionId() // institutionId
+            );
+            
+            // Guardar el usuario
+            Result<User> saveResult = userRepository.save(newUser);
+            if (!saveResult.isSuccess()) {
+                return CommonResponseDto.builder()
+                        .success(false)
+                        .message("Error al guardar el usuario: " + saveResult.getErrorMessage())
+                        .build();
+            }
+            
+            User savedUser = saveResult.getData();
+            
+            // Registrar el cambio de contraseña en el historial
+            String registrationIpAddress = "0.0.0.0"; // Se puede mejorar pasando la IP real
+            securityRepository.recordPasswordChange(
+                savedUser.getId(), 
+                hashedPassword, 
+                registrationIpAddress, 
+                "Account Registration", 
+                false
+            );
+            
+            // Registrar auditoría
+            auditService.logAction(
+                savedUser.getId(), 
+                (byte) 1, // Action: CREATE
+                "USER", 
+                savedUser.getId(), 
+                String.format("User registered - Role: %d, Institution: %d", 
+                    registerRequest.getRoleId(), registerRequest.getInstitutionId()), 
+                registrationIpAddress, 
+                registerRequest.getDeviceInfo() != null ? registerRequest.getDeviceInfo() : "Unknown Device", 
+                true
+            );
+            
+            log.info("User registered successfully with ID: {} for email: {}", savedUser.getId(), registerRequest.getEmail());
+            
+            return CommonResponseDto.builder()
+                    .success(true)
+                    .message("Usuario registrado correctamente. Revisa tu email para verificar tu cuenta.")
+                    .data(Map.of(
+                        "userId", savedUser.getId(),
+                        "email", savedUser.getEmail(),
+                        "role", registerRequest.getRoleId()
+                    ))
+                    .build();
+                    
+        } catch (Exception e) {
+            log.error("Error during user registration for email: {}", registerRequest.getEmail(), e);
+            return CommonResponseDto.builder()
+                    .success(false)
+                    .message("Error al registrar el usuario: " + e.getMessage())
+                    .build();
+        }
     }
 
     /**
      * Construye un UserInfoDto a partir de un objeto completo de usuario
-     * @param completeUser Objeto completo de usuario (CompleteStudent, CompleteTeacher, o CompleteGuardian)
+     * @param completeUser Objeto completo de usuario (CompleteStudent, CompleteTeacher, CompleteGuardian, o User)
      * @return UserInfoDto con la información del usuario
      */
     private UserResponseDto.UserInfoDto buildUserInfoDto(Object completeUser) {
@@ -531,6 +629,25 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         } else if (completeUser instanceof CompleteGuardian) {
             CompleteGuardian guardian = (CompleteGuardian) completeUser;
             user = guardian.getUser();
+            if (user.getInstitution() != null) {
+                institutionInfoDto = AuthResponseDto.InstitutionInfoDto.builder()
+                        .id(user.getInstitution().getId())
+                        .name(user.getInstitution().getName())
+                        .build();
+            }
+            if (user.getRole() != null) {
+                roleInfoDto = AuthResponseDto.RoleInfoDto.builder()
+                        .id(user.getRole().getId().longValue())
+                        .name(user.getRole().getName())
+                        .code(user.getRole().getRoleCode())
+                        .build();
+            }
+        } else if (completeUser instanceof User) {
+            // Manejar objeto User simple (típicamente para usuarios ADMIN)
+            user = (User) completeUser;
+            log.info("Building UserInfoDto for simple User object - ID: {}, Role: {}", 
+                    user.getId(), user.getRole() != null ? user.getRole().getName() : "null");
+            
             if (user.getInstitution() != null) {
                 institutionInfoDto = AuthResponseDto.InstitutionInfoDto.builder()
                         .id(user.getInstitution().getId())

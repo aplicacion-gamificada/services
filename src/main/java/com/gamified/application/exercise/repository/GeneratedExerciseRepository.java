@@ -25,6 +25,15 @@ public interface GeneratedExerciseRepository {
     Optional<GeneratedExercise> findById(Long id);
 
     /**
+     * Busca ejercicios generados disponibles para una plantilla, estudiante y dificultad específicos
+     * @param exerciseTemplateId ID de la plantilla de ejercicio
+     * @param studentProfileId ID del estudiante
+     * @param difficulty Nivel de dificultad
+     * @return Lista de ejercicios disponibles del pool
+     */
+    List<GeneratedExercise> findAvailableByTemplateAndStudent(Integer exerciseTemplateId, Integer studentProfileId, String difficulty);
+
+    /**
      * Busca ejercicios generados disponibles (no utilizados) para una plantilla específica
      * @param exerciseTemplateId ID de la plantilla de ejercicio
      * @param limit Número máximo de ejercicios a retornar
@@ -33,11 +42,40 @@ public interface GeneratedExerciseRepository {
     List<GeneratedExercise> findAvailableByTemplate(Integer exerciseTemplateId, Integer limit);
 
     /**
+     * Busca ejercicios por plantilla y dificultad
+     * @param exerciseTemplateId ID de la plantilla
+     * @param difficulty Nivel de dificultad
+     * @param limit Límite de resultados
+     * @return Lista de ejercicios generados
+     */
+    List<GeneratedExercise> findByTemplateAndDifficulty(Integer exerciseTemplateId, String difficulty, int limit);
+
+    /**
+     * Marca un ejercicio generado como utilizado
+     * @param generatedExerciseId ID del ejercicio generado
+     */
+    void markAsUsed(Long generatedExerciseId);
+
+    /**
      * Marca un ejercicio generado como utilizado (vinculándolo a un intento)
      * @param generatedExerciseId ID del ejercicio generado
      * @param attemptId ID del intento que lo utilizó
      */
     void markAsUsed(Long generatedExerciseId, Integer attemptId);
+
+    /**
+     * Elimina un ejercicio generado por ID
+     * @param id ID del ejercicio a eliminar
+     */
+    void deleteById(Long id);
+
+    /**
+     * Cuenta ejercicios disponibles por plantilla y dificultad
+     * @param exerciseTemplateId ID de la plantilla
+     * @param difficulty Nivel de dificultad
+     * @return Número de ejercicios disponibles
+     */
+    Integer countAvailableByTemplate(Integer exerciseTemplateId, String difficulty);
 
     /**
      * Obtiene ejercicios generados para una plantilla específica con paginación

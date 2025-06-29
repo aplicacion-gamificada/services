@@ -94,6 +94,11 @@ public interface ExerciseRepository {
      */
     Integer countAttemptsByStudentAndExercise(Integer studentProfileId, Integer exerciseId);
     
+    /**
+     * Cuenta total de intentos de un estudiante en una plantilla de ejercicio
+     */
+    Integer countAttemptsByStudentAndTemplate(Integer studentProfileId, Integer exerciseTemplateId);
+    
     // ===================================================================
     // ANALYTICS & STATISTICS
     // ===================================================================

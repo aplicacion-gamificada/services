@@ -15,25 +15,64 @@ public class ExerciseResponseDto {
 
     /**
      * DTO para el siguiente ejercicio disponible
+     * Estructura basada en GUIA.md para el frontend
      */
     @Data
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
     public static class NextExerciseDto {
-        private Integer exerciseId;
+        private Long generatedExerciseId; // ID del ejercicio generado (para tracking)
+        private Integer exerciseTemplateId; // ID de la plantilla base
+        private String exerciseType; // Tipo de ejercicio (ej. "drag_and_drop")
+        private String renderVariant; // Variante de renderizado (ej. "drag-to-sort")
+        private String difficultyLevel; // Nivel de dificultad
+        
+        // Configuración para el componente frontend
+        private ExerciseConfigDto config;
+        
+        // Contenido generado por la IA
+        private ExerciseContentDto content;
+        
+        // Metadatos adicionales
         private Integer learningPointId;
         private String learningPointTitle;
-        private String exerciseTypeId;
-        private String exerciseTypeName;
-        private String title;
-        private String questionText;
-        private List<String> possibleAnswers; // Parsed from JSON
-        private String difficulty;
-        private List<String> hints; // Parsed from JSON
-        private Integer estimatedTimeMinutes;
-        private Boolean hasAttempts; // If student has attempted this exercise
+        private Boolean hasAttempts; // Si el estudiante ya intentó ejercicios de esta plantilla
         private Integer previousAttempts;
+    }
+    
+    /**
+     * DTO para la configuración del ejercicio (parte de NextExerciseDto)
+     */
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class ExerciseConfigDto {
+        private Boolean showTimer;
+        private Integer maxTime; // En segundos
+        private Boolean allowPartialScore;
+        private Integer itemCount; // Para ejercicios con múltiples elementos
+        private Boolean shuffleItems;
+        private Boolean showHints;
+        private Boolean allowRetry;
+    }
+    
+    /**
+     * DTO para el contenido del ejercicio (parte de NextExerciseDto)
+     */
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class ExerciseContentDto {
+        private String title;
+        private String instructions;
+        private Object options; // Puede ser List<String>, Map, etc. dependiendo del tipo
+        private Object correctAnswer; // Estructura variable según el tipo de ejercicio
+        private String explanation; // Explicación de la respuesta correcta
+        private List<String> hints; // Pistas disponibles
+        private String imageUrl; // URL de imagen si aplica
     }
 
     /**

@@ -50,3 +50,6 @@ TEACHER_ENDPOINTS_IMPLEMENTATION.md
 GUIA.md
 /.cursor
 .cursorignore
+*.pdf
+/data
+.env
