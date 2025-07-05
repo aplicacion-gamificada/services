@@ -36,6 +36,12 @@ public class ClassroomRequestDto {
         
         @Size(max = 50, message = "El nombre no puede exceder 50 caracteres")
         private String name;
+        
+        /**
+         * ID del perfil del profesor (requerido para administradores)
+         * Para profesores, este campo se ignora ya que se obtiene del token
+         */
+        private Integer teacherProfileId;
     }
 
     /**

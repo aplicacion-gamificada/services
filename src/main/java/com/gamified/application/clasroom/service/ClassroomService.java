@@ -23,6 +23,14 @@ public interface ClassroomService {
     ClassroomResponseDto.ClassroomDto createClassroom(Long teacherUserId, ClassroomRequestDto.CreateClassroomRequestDto request);
     
     /**
+     * Crea un nuevo aula (para administradores)
+     * @param adminUserId ID del usuario administrador
+     * @param request Datos del aula a crear
+     * @return Aula creada
+     */
+    ClassroomResponseDto.ClassroomDto createClassroomByAdmin(Long adminUserId, ClassroomRequestDto.CreateClassroomRequestDto request);
+    
+    /**
      * Obtiene todas las aulas de un profesor
      * @param teacherUserId ID del usuario profesor
      * @return Lista de aulas del profesor
@@ -68,6 +76,15 @@ public interface ClassroomService {
     ClassroomResponseDto.EnrollmentResponseDto enrollStudent(Long teacherUserId, Integer classroomId, ClassroomRequestDto.EnrollStudentRequestDto request);
     
     /**
+     * Inscribe un estudiante en un aula (para administradores)
+     * @param adminUserId ID del usuario administrador
+     * @param classroomId ID del aula
+     * @param request Datos de la inscripción
+     * @return Resultado de la inscripción
+     */
+    ClassroomResponseDto.EnrollmentResponseDto enrollStudentByAdmin(Long adminUserId, Integer classroomId, ClassroomRequestDto.EnrollStudentRequestDto request);
+    
+    /**
      * Obtiene los estudiantes de un aula
      * @param teacherUserId ID del usuario profesor
      * @param classroomId ID del aula
@@ -83,6 +100,15 @@ public interface ClassroomService {
      * @return true si se desinscribió correctamente
      */
     boolean unenrollStudent(Long teacherUserId, Integer classroomId, Integer studentProfileId);
+    
+    /**
+     * Desinscribe un estudiante de un aula (para administradores)
+     * @param adminUserId ID del usuario administrador
+     * @param classroomId ID del aula
+     * @param studentProfileId ID del perfil del estudiante
+     * @return true si se desinscribió correctamente
+     */
+    boolean unenrollStudentByAdmin(Long adminUserId, Integer classroomId, Integer studentProfileId);
     
     // ===================================================================
     // STUDENT OPERATIONS (for students)

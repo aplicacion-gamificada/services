@@ -222,15 +222,33 @@ public class ClassroomRepositoryImpl implements ClassroomRepository {
         String sql = """
             SELECT c.id, c.name, c.grade, c.section, c.year, c.status, c.created_at, c.updated_at,
                    COUNT(e2.student_profile_id) as enrolled_count
-            FROM enrollment e
-            JOIN classroom c ON e.classroom_id = c.id
+            FROM classroom c
+            JOIN enrollment e ON c.id = e.classroom_id AND e.status = 1
             LEFT JOIN enrollment e2 ON c.id = e2.classroom_id AND e2.status = 1
-            WHERE e.student_profile_id = ? AND e.status = 1 AND c.status = 1
+            WHERE e.student_profile_id = ? AND c.status = 1
             GROUP BY c.id, c.name, c.grade, c.section, c.year, c.status, c.created_at, c.updated_at
-            ORDER BY e.joined_at DESC
+            ORDER BY c.created_at DESC
             """;
 
         return jdbcTemplate.query(sql, classroomDtoRowMapper(), studentProfileId);
+    }
+
+    @Override
+    public Optional<String> findStudentNameByProfileId(Integer studentProfileId) {
+        String sql = """
+            SELECT u.first_name + ' ' + u.last_name as full_name
+            FROM student_profile sp
+            JOIN [user] u ON sp.user_id = u.id
+            WHERE sp.id = ?
+            """;
+
+        try {
+            String fullName = jdbcTemplate.queryForObject(sql, String.class, studentProfileId);
+            return Optional.ofNullable(fullName);
+        } catch (Exception e) {
+            log.debug("Student name not found for profile ID: {}", studentProfileId);
+            return Optional.empty();
+        }
     }
 
     // ===================================================================

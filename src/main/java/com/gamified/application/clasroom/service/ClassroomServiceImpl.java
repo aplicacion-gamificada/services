@@ -73,6 +73,51 @@ public class ClassroomServiceImpl implements ClassroomService {
     }
 
     @Override
+    @Transactional
+    public ClassroomResponseDto.ClassroomDto createClassroomByAdmin(Long adminUserId, ClassroomRequestDto.CreateClassroomRequestDto request) {
+        try {
+            log.info("Creating classroom by admin {}: {}", adminUserId, request);
+
+            // Para ADMINs, necesitamos que especifiquen el teacherProfileId en el request
+            // Si no se especifica, lanzamos excepción
+            if (request.getTeacherProfileId() == null) {
+                throw new IllegalArgumentException("El teacherProfileId es requerido para crear aulas como administrador");
+            }
+
+            // Verificar que el teacher profile existe
+            // Nota: Aquí podríamos hacer una verificación adicional si es necesario
+            
+            // Crear entidad Classroom
+            Classroom classroom = Classroom.builder()
+                    .teacherProfileId(request.getTeacherProfileId())
+                    .grade(request.getGrade())
+                    .section(request.getSection())
+                    .year(request.getYear())
+                    .name(request.getName())
+                    .status(1) // Active
+                    .createdAt(LocalDateTime.now())
+                    .updatedAt(LocalDateTime.now())
+                    .build();
+
+            // Guardar en base de datos
+            Integer classroomId = classroomRepository.createClassroom(classroom);
+
+            // Obtener el classroom creado para devolver la respuesta completa
+            Optional<Classroom> createdClassroom = classroomRepository.findClassroomById(classroomId);
+            if (createdClassroom.isEmpty()) {
+                throw new RuntimeException("Error al recuperar el aula creada");
+            }
+
+            // Convertir a DTO de respuesta
+            return convertToClassroomDto(createdClassroom.get(), 0);
+
+        } catch (Exception e) {
+            log.error("Error creating classroom by admin {}: {}", adminUserId, e.getMessage(), e);
+            throw new RuntimeException("Error al crear el aula: " + e.getMessage(), e);
+        }
+    }
+
+    @Override
     public List<ClassroomResponseDto.ClassroomDto> getTeacherClassrooms(Long teacherUserId) {
         try {
             log.debug("Getting classrooms for teacher {}", teacherUserId);
@@ -164,7 +209,7 @@ public class ClassroomServiceImpl implements ClassroomService {
             Integer enrollmentId = classroomRepository.enrollStudent(enrollment);
 
             // Obtener nombre del estudiante para la respuesta
-            String studentName = "Estudiante " + request.getStudentProfileId();
+            String studentName = getStudentName(request.getStudentProfileId());
 
             return ClassroomResponseDto.EnrollmentResponseDto.builder()
                     .enrollmentId(enrollmentId)
@@ -180,6 +225,62 @@ public class ClassroomServiceImpl implements ClassroomService {
         } catch (Exception e) {
             log.error("Error enrolling student {} in classroom {} by teacher {}: {}", 
                     request.getStudentProfileId(), classroomId, teacherUserId, e.getMessage(), e);
+            throw new RuntimeException("Error al inscribir estudiante: " + e.getMessage(), e);
+        }
+    }
+
+    @Override
+    @Transactional
+    public ClassroomResponseDto.EnrollmentResponseDto enrollStudentByAdmin(Long adminUserId, Integer classroomId, ClassroomRequestDto.EnrollStudentRequestDto request) {
+        try {
+            log.info("Enrolling student {} in classroom {} by admin {}", request.getStudentProfileId(), classroomId, adminUserId);
+
+            // Para ADMINs, NO verificamos ownership - pueden inscribir estudiantes en cualquier aula
+
+            // Verificar que el classroom existe
+            Optional<Classroom> classroom = classroomRepository.findClassroomById(classroomId);
+            if (classroom.isEmpty()) {
+                throw new ResourceNotFoundException("Aula no encontrada con ID: " + classroomId);
+            }
+
+            // Verificar que el estudiante no está ya inscrito
+            if (classroomRepository.isStudentEnrolled(classroomId, request.getStudentProfileId())) {
+                return ClassroomResponseDto.EnrollmentResponseDto.builder()
+                        .success(false)
+                        .message("El estudiante ya está inscrito en esta aula")
+                        .classroomId(classroomId)
+                        .studentProfileId(request.getStudentProfileId())
+                        .classroomName(classroom.get().getName())
+                        .build();
+            }
+
+            // Crear enrollment
+            Enrollment enrollment = Enrollment.builder()
+                    .classroomId(classroomId)
+                    .studentProfileId(request.getStudentProfileId())
+                    .joinedAt(LocalDateTime.now())
+                    .status(1) // Active
+                    .build();
+
+            Integer enrollmentId = classroomRepository.enrollStudent(enrollment);
+
+            // Obtener nombre del estudiante para la respuesta
+            String studentName = getStudentName(request.getStudentProfileId());
+
+            return ClassroomResponseDto.EnrollmentResponseDto.builder()
+                    .enrollmentId(enrollmentId)
+                    .classroomId(classroomId)
+                    .studentProfileId(request.getStudentProfileId())
+                    .studentName(studentName)
+                    .classroomName(classroom.get().getName())
+                    .success(true)
+                    .message("Estudiante inscrito exitosamente por administrador")
+                    .enrolledAt(LocalDateTime.now())
+                    .build();
+
+        } catch (Exception e) {
+            log.error("Error enrolling student {} in classroom {} by admin {}: {}", 
+                    request.getStudentProfileId(), classroomId, adminUserId, e.getMessage(), e);
             throw new RuntimeException("Error al inscribir estudiante: " + e.getMessage(), e);
         }
     }
@@ -205,7 +306,56 @@ public class ClassroomServiceImpl implements ClassroomService {
     @Override
     @Transactional
     public boolean unenrollStudent(Long teacherUserId, Integer classroomId, Integer studentProfileId) {
-        throw new UnsupportedOperationException("Not implemented yet");
+        try {
+            log.info("Unenrolling student {} from classroom {} by teacher {}", studentProfileId, classroomId, teacherUserId);
+
+            // Verificar ownership del classroom
+            if (!verifyClassroomOwnership(teacherUserId, classroomId)) {
+                throw new IllegalArgumentException("El aula no pertenece al profesor especificado");
+            }
+
+            // Verificar que el estudiante está inscrito
+            if (!classroomRepository.isStudentEnrolled(classroomId, studentProfileId)) {
+                throw new IllegalArgumentException("El estudiante no está inscrito en esta aula");
+            }
+
+            // Desinscribir estudiante
+            return classroomRepository.unenrollStudent(classroomId, studentProfileId);
+
+        } catch (Exception e) {
+            log.error("Error unenrolling student {} from classroom {} by teacher {}: {}", 
+                    studentProfileId, classroomId, teacherUserId, e.getMessage(), e);
+            throw new RuntimeException("Error al desinscribir estudiante: " + e.getMessage(), e);
+        }
+    }
+
+    @Override
+    @Transactional
+    public boolean unenrollStudentByAdmin(Long adminUserId, Integer classroomId, Integer studentProfileId) {
+        try {
+            log.info("Unenrolling student {} from classroom {} by admin {}", studentProfileId, classroomId, adminUserId);
+
+            // Para ADMINs, NO verificamos ownership - pueden desinscribir estudiantes de cualquier aula
+
+            // Verificar que el classroom existe
+            Optional<Classroom> classroom = classroomRepository.findClassroomById(classroomId);
+            if (classroom.isEmpty()) {
+                throw new ResourceNotFoundException("Aula no encontrada con ID: " + classroomId);
+            }
+
+            // Verificar que el estudiante está inscrito
+            if (!classroomRepository.isStudentEnrolled(classroomId, studentProfileId)) {
+                throw new IllegalArgumentException("El estudiante no está inscrito en esta aula");
+            }
+
+            // Desinscribir estudiante
+            return classroomRepository.unenrollStudent(classroomId, studentProfileId);
+
+        } catch (Exception e) {
+            log.error("Error unenrolling student {} from classroom {} by admin {}: {}", 
+                    studentProfileId, classroomId, adminUserId, e.getMessage(), e);
+            throw new RuntimeException("Error al desinscribir estudiante: " + e.getMessage(), e);
+        }
     }
 
     // ===================================================================
@@ -268,13 +418,13 @@ public class ClassroomServiceImpl implements ClassroomService {
     }
 
     private String getStudentName(Integer studentProfileId) {
-        // Método auxiliar para obtener el nombre del estudiante
-        // En un escenario real, podrías hacer una consulta a la base de datos
+        // Obtener el nombre real del estudiante desde la base de datos
         try {
-            // Por ahora retornamos un placeholder, se puede mejorar con una consulta específica
-            return "Estudiante " + studentProfileId;
+            Optional<String> studentName = classroomRepository.findStudentNameByProfileId(studentProfileId);
+            return studentName.orElse("Estudiante " + studentProfileId);
         } catch (Exception e) {
-            return "Estudiante";
+            log.warn("Error obteniendo nombre del estudiante con ID {}: {}", studentProfileId, e.getMessage());
+            return "Estudiante " + studentProfileId;
         }
     }
 

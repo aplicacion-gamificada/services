@@ -39,22 +39,23 @@ public class ClassroomController {
     // ===================================================================
 
     /**
-     * Crea un nuevo aula para el profesor autenticado
+     * Crea un nuevo aula (solo para administradores)
      * POST /api/teachers/classrooms
      */
     @PostMapping("/classrooms")
-    @PreAuthorize("hasRole('TEACHER')")
-    @Operation(summary = "Crear aula", description = "Crea un nuevo aula para el profesor autenticado")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Crear aula", description = "Crea un nuevo aula (solo para administradores)")
     public ResponseEntity<ClassroomResponseDto.ClassroomDto> createClassroom(
             @Valid @RequestBody ClassroomRequestDto.CreateClassroomRequestDto request,
             Authentication authentication,
             HttpServletRequest httpRequest) {
         
         try {
-            Long teacherUserId = getUserIdFromToken(httpRequest);
-            log.info("POST /api/teachers/classrooms - Teacher {} creating classroom: {}", teacherUserId, request);
+            Long adminUserId = getUserIdFromToken(httpRequest);
+            log.info("POST /api/teachers/classrooms - Admin {} creating classroom: {}", adminUserId, request);
             
-            ClassroomResponseDto.ClassroomDto classroom = classroomService.createClassroom(teacherUserId, request);
+            // Para ADMINs, usamos el adminUserId y el servicio maneja la lógica específica
+            ClassroomResponseDto.ClassroomDto classroom = classroomService.createClassroomByAdmin(adminUserId, request);
             
             return ResponseEntity.status(HttpStatus.CREATED).body(classroom);
             
@@ -120,12 +121,12 @@ public class ClassroomController {
     // ===================================================================
 
     /**
-     * Inscribe un estudiante en un aula específica
+     * Inscribe un estudiante en un aula específica (solo para administradores)
      * POST /api/teachers/classrooms/{classroomId}/enroll
      */
     @PostMapping("/classrooms/{classroomId}/enroll")
-    @PreAuthorize("hasRole('TEACHER')")
-    @Operation(summary = "Inscribir estudiante", description = "Inscribe un estudiante en un aula específica")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Inscribir estudiante", description = "Inscribe un estudiante en un aula específica (solo para administradores)")
     public ResponseEntity<ClassroomResponseDto.EnrollmentResponseDto> enrollStudent(
             @PathVariable Integer classroomId,
             @Valid @RequestBody ClassroomRequestDto.EnrollStudentRequestDto request,
@@ -133,11 +134,12 @@ public class ClassroomController {
             HttpServletRequest httpRequest) {
         
         try {
-            Long teacherUserId = getUserIdFromToken(httpRequest);
-            log.info("POST /api/teachers/classrooms/{}/enroll - Teacher {} enrolling student {}", 
-                    classroomId, teacherUserId, request.getStudentProfileId());
+            Long adminUserId = getUserIdFromToken(httpRequest);
+            log.info("POST /api/teachers/classrooms/{}/enroll - Admin {} enrolling student {}", 
+                    classroomId, adminUserId, request.getStudentProfileId());
             
-            ClassroomResponseDto.EnrollmentResponseDto enrollment = classroomService.enrollStudent(teacherUserId, classroomId, request);
+            // Para ADMINs, usamos el adminUserId y el servicio maneja la lógica específica
+            ClassroomResponseDto.EnrollmentResponseDto enrollment = classroomService.enrollStudentByAdmin(adminUserId, classroomId, request);
             
             HttpStatus status = enrollment.getSuccess() ? HttpStatus.CREATED : HttpStatus.CONFLICT;
             
@@ -176,12 +178,12 @@ public class ClassroomController {
     }
 
     /**
-     * Desinscribe un estudiante de un aula
+     * Desinscribe un estudiante de un aula (solo para administradores)
      * DELETE /api/teachers/classrooms/{classroomId}/students/{studentProfileId}
      */
     @DeleteMapping("/classrooms/{classroomId}/students/{studentProfileId}")
-    @PreAuthorize("hasRole('TEACHER')")
-    @Operation(summary = "Desinscribir estudiante", description = "Desinscribe un estudiante de un aula específica")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Desinscribir estudiante", description = "Desinscribe un estudiante de un aula específica (solo para administradores)")
     public ResponseEntity<CommonResponseDto> unenrollStudent(
             @PathVariable Integer classroomId,
             @PathVariable Integer studentProfileId,
@@ -189,11 +191,12 @@ public class ClassroomController {
             HttpServletRequest httpRequest) {
         
         try {
-            Long teacherUserId = getUserIdFromToken(httpRequest);
-            log.info("DELETE /api/teachers/classrooms/{}/students/{} - Teacher {} unenrolling student", 
-                    classroomId, studentProfileId, teacherUserId);
+            Long adminUserId = getUserIdFromToken(httpRequest);
+            log.info("DELETE /api/teachers/classrooms/{}/students/{} - Admin {} unenrolling student", 
+                    classroomId, studentProfileId, adminUserId);
             
-            boolean result = classroomService.unenrollStudent(teacherUserId, classroomId, studentProfileId);
+            // Para ADMINs, usamos el adminUserId y el servicio maneja la lógica específica
+            boolean result = classroomService.unenrollStudentByAdmin(adminUserId, classroomId, studentProfileId);
             
             CommonResponseDto response = CommonResponseDto.builder()
                     .success(result)

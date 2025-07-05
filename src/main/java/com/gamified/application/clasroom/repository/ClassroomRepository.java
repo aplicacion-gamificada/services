@@ -107,6 +107,13 @@ public interface ClassroomRepository {
      */
     List<ClassroomResponseDto.ClassroomDto> findClassroomsByStudent(Integer studentProfileId);
     
+    /**
+     * Obtiene el nombre completo del estudiante por su profile ID
+     * @param studentProfileId ID del perfil del estudiante
+     * @return Nombre completo del estudiante
+     */
+    Optional<String> findStudentNameByProfileId(Integer studentProfileId);
+    
     // ===================================================================
     // STATISTICS OPERATIONS
     // ===================================================================
