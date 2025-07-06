@@ -707,8 +707,28 @@ public class UserProfileServiceImpl implements UserProfileService {
                 WHERE sl.student_profile_id = ?
                 """;
             
-            Integer level = jdbcTemplate.queryForObject(sql, new Object[]{studentProfileId}, Integer.class);
-            return level != null ? level : 1;
+            List<Integer> levels = jdbcTemplate.queryForList(sql, new Object[]{studentProfileId}, Integer.class);
+            
+            if (levels.isEmpty()) {
+                // Si no hay registro de nivel, crear uno por defecto en nivel 1
+                try {
+                    // Buscar el level_system_id para nivel 1
+                    String levelSystemSql = "SELECT id FROM level_system WHERE level_number = 1";
+                    List<Integer> levelSystemIds = jdbcTemplate.queryForList(levelSystemSql, Integer.class);
+                    
+                    if (!levelSystemIds.isEmpty()) {
+                        Integer levelSystemId = levelSystemIds.get(0);
+                        String insertSql = "INSERT INTO student_level (student_profile_id, level_system_id, current_xp, created_at, updated_at) VALUES (?, ?, 0, GETDATE(), GETDATE())";
+                        jdbcTemplate.update(insertSql, studentProfileId, levelSystemId);
+                        return 1;
+                    }
+                } catch (Exception insertError) {
+                    System.err.println("Error creando registro de nivel para estudiante " + studentProfileId + ": " + insertError.getMessage());
+                }
+                return 1; // Nivel por defecto
+            }
+            
+            return levels.get(0);
         } catch (Exception e) {
             System.err.println("Error obteniendo nivel del estudiante " + studentProfileId + ": " + e.getMessage());
             return 1; // Nivel por defecto
@@ -723,8 +743,10 @@ public class UserProfileServiceImpl implements UserProfileService {
      */
     private List<UserResponseDto.AchievementSummaryDto> getRecentStudentAchievements(Long userId, int limit) {
         try {
-            String sql = """
-                SELECT TOP ? 
+            // En SQL Server, no se puede usar SELECT TOP ? con parámetros
+            // Usamos una subconsulta con OFFSET/FETCH para manejar el límite dinámico
+            String sql = String.format("""
+                SELECT TOP %d 
                     sa.id,
                     a.achievement_name,
                     a.achievement_description,
@@ -740,9 +762,9 @@ public class UserProfileServiceImpl implements UserProfileService {
                     AND a.is_active = 1
                     AND sa.is_active = 1
                 ORDER BY sa.earned_at DESC
-                """;
+                """, limit);
             
-            return jdbcTemplate.query(sql, new Object[]{limit, userId}, (rs, rowNum) -> 
+            return jdbcTemplate.query(sql, new Object[]{userId}, (rs, rowNum) -> 
                 UserResponseDto.AchievementSummaryDto.builder()
                     .id(rs.getLong("id"))
                     .name(rs.getString("achievement_name"))

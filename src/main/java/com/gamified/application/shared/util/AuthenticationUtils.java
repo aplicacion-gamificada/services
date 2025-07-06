@@ -1,11 +1,15 @@
 package com.gamified.application.shared.util;
 
+import com.gamified.application.user.repository.composite.CompleteUserRepository;
+import com.gamified.application.user.model.entity.composite.CompleteStudent;
 import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.stereotype.Component;
 
 import java.util.Collection;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
@@ -13,6 +17,13 @@ import java.util.stream.Collectors;
  */
 @Component
 public class AuthenticationUtils {
+
+    private final CompleteUserRepository completeUserRepository;
+
+    @Autowired
+    public AuthenticationUtils(CompleteUserRepository completeUserRepository) {
+        this.completeUserRepository = completeUserRepository;
+    }
 
     /**
      * Extrae el ID del usuario de la autenticación
@@ -27,6 +38,51 @@ public class AuthenticationUtils {
         // Obtener el ID del usuario del principal
         // La implementación exacta dependerá de cómo se almacena el ID en el objeto Authentication
         return Long.valueOf(authentication.getName());
+    }
+    
+    /**
+     * Extrae el email del usuario de la autenticación
+     * Basado en que el JWT contiene el email como subject
+     * @param authentication Objeto de autenticación
+     * @return Email del usuario
+     */
+    public static String getUserEmail(Authentication authentication) {
+        if (authentication == null) {
+            return null;
+        }
+        
+        // El authentication.getName() contiene el email (subject del JWT)
+        return authentication.getName();
+    }
+    
+    /**
+     * Extrae el ID del perfil de estudiante de la autenticación
+     * @param authentication Objeto de autenticación
+     * @return ID del perfil de estudiante
+     */
+    public Integer getStudentProfileIdFromAuthentication(Authentication authentication) {
+        if (authentication == null) {
+            return null;
+        }
+        
+        try {
+            // 1. Obtener el email del JWT
+            String email = authentication.getName();
+            
+            // 2. Buscar el usuario completo por email
+            Optional<Object> userOpt = completeUserRepository.findCompleteUserByEmail(email);
+            
+            if (userOpt.isPresent() && userOpt.get() instanceof CompleteStudent) {
+                CompleteStudent completeStudent = (CompleteStudent) userOpt.get();
+                // 3. Obtener el student_profile_id
+                return completeStudent.getStudentProfile().getId().intValue();
+            }
+            
+            return null;
+        } catch (Exception e) {
+            System.err.println("Error obteniendo studentProfileId del usuario autenticado: " + e.getMessage());
+            return null;
+        }
     }
     
     /**

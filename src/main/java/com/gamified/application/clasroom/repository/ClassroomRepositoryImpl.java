@@ -34,8 +34,8 @@ public class ClassroomRepositoryImpl implements ClassroomRepository {
     @Override
     public Integer createClassroom(Classroom classroom) {
         String sql = """
-            INSERT INTO classroom (teacher_profile_id, grade, section, year, name, status, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, 1, GETDATE(), GETDATE())
+            INSERT INTO classroom (teacher_profile_id, grade, section, year, name, specialization_id, status, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, 1, GETDATE(), GETDATE())
             """;
 
         KeyHolder keyHolder = new GeneratedKeyHolder();
@@ -47,6 +47,11 @@ public class ClassroomRepositoryImpl implements ClassroomRepository {
             ps.setString(3, classroom.getSection());
             ps.setString(4, classroom.getYear());
             ps.setString(5, classroom.getName());
+            if (classroom.getSpecializationId() != null) {
+                ps.setInt(6, classroom.getSpecializationId());
+            } else {
+                ps.setNull(6, java.sql.Types.INTEGER);
+            }
             return ps;
         }, keyHolder);
 
@@ -56,7 +61,7 @@ public class ClassroomRepositoryImpl implements ClassroomRepository {
     @Override
     public Optional<Classroom> findClassroomById(Integer classroomId) {
         String sql = """
-            SELECT id, teacher_profile_id, grade, section, year, name, status, created_at, updated_at
+            SELECT id, teacher_profile_id, grade, section, year, name, specialization_id, status, created_at, updated_at
             FROM classroom
             WHERE id = ?
             """;
@@ -89,7 +94,7 @@ public class ClassroomRepositoryImpl implements ClassroomRepository {
     public boolean updateClassroom(Classroom classroom) {
         String sql = """
             UPDATE classroom
-            SET grade = ?, section = ?, year = ?, name = ?, status = ?, updated_at = GETDATE()
+            SET grade = ?, section = ?, year = ?, name = ?, specialization_id = ?, status = ?, updated_at = GETDATE()
             WHERE id = ?
             """;
 
@@ -98,6 +103,7 @@ public class ClassroomRepositoryImpl implements ClassroomRepository {
                 classroom.getSection(),
                 classroom.getYear(),
                 classroom.getName(),
+                classroom.getSpecializationId(),
                 classroom.getStatus(),
                 classroom.getId());
 
@@ -295,6 +301,8 @@ public class ClassroomRepositoryImpl implements ClassroomRepository {
                 .section(rs.getString("section"))
                 .year(rs.getString("year"))
                 .name(rs.getString("name"))
+                .specializationId(rs.getObject("specialization_id") != null ? 
+                        rs.getInt("specialization_id") : null)
                 .status(rs.getInt("status"))
                 .createdAt(rs.getTimestamp("created_at") != null ? 
                         rs.getTimestamp("created_at").toLocalDateTime() : null)

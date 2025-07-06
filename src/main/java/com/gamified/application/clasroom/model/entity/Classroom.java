@@ -26,4 +26,5 @@ public class Classroom {
     private Integer status;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private Integer specializationId;
 } 
