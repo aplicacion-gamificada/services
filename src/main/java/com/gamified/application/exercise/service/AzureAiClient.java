@@ -47,13 +47,13 @@ public class AzureAiClient {
     @Value("${azure.ai.foundry.model-version:1}")
     private String modelVersion;
 
-    @Value("${azure.ai.foundry.max-tokens:2000}")
+    @Value("${azure.ai.foundry.max-tokens:4000}")
     private int maxTokens;
 
-    @Value("${azure.ai.foundry.temperature:0.7}")
+    @Value("${azure.ai.foundry.temperature:1.2}")
     private double temperature;
 
-    @Value("${azure.ai.foundry.top-p:0.9}")
+    @Value("${azure.ai.foundry.top-p:0.95}")
     private double topP;
 
     @Value("${azure.ai.foundry.frequency-penalty:0.0}")
@@ -119,18 +119,18 @@ public class AzureAiClient {
                 throw new RuntimeException("Azure AI client not configured");
             }
             
-            // Mensajes ULTRA SIMPLES
+            // Mensajes optimizados para modelo de razonamiento
             List<ChatRequestMessage> chatMessages = Arrays.asList(
-                new ChatRequestSystemMessage("Eres un experto en matematicas. Responde SOLO con JSON valido en UNA LINEA. No uses acentos ni caracteres especiales."),
+                new ChatRequestSystemMessage("Eres un experto profesor de matemáticas con un modelo de razonamiento avanzado. INCLUYE tu proceso de razonamiento completo en la respuesta, luego termina con el JSON solicitado. Piensa paso a paso, razona sobre el problema, y asegúrate de que la pregunta y respuesta sean coherentes. Usa español en todo el contenido educativo."),
                 new ChatRequestUserMessage(cleanPrompt)
             );
 
-            // Configurar opciones conservadoras
+            // Configurar opciones para modelo de razonamiento
             ChatCompletionsOptions options = new ChatCompletionsOptions(chatMessages);
             options.setModel(deploymentName);
-            options.setMaxTokens(300); // Muy limitado
-            options.setTemperature(0.1); // Mínima creatividad
-            options.setTopP(0.3); // Muy enfocado
+            options.setMaxTokens(4000); // Más tokens para razonamiento completo
+            options.setTemperature(1.2); // Mayor creatividad para variabilidad
+            options.setTopP(0.95); // Más diversidad en respuestas
 
             ChatCompletions completions = client.complete(options);
             String exerciseContent = extractAndCleanContentFromResponse(completions);
@@ -230,10 +230,10 @@ public class AzureAiClient {
     }
 
     /**
-     * Extrae JSON del contenido - CON SOPORTE PARA FORMATO DE PROPIEDADES
+     * Extrae JSON del contenido - CON SOPORTE PARA RAZONAMIENTO Y PROPIEDADES
      */
     private String extractJsonFromContent(String content) {
-        log.info("Extrayendo JSON del contenido...");
+        log.info("Extrayendo JSON del contenido (puede incluir razonamiento)...");
         
         content = content.trim();
         
@@ -243,14 +243,39 @@ public class AzureAiClient {
             return content;
         }
         
-        // Buscar JSON tradicional
+        // Para modelos de razonamiento: buscar el ÚLTIMO JSON válido en la respuesta
+        // (el modelo puede incluir razonamiento antes del JSON final)
+        int lastStartJson = content.lastIndexOf("{\"question\"");
+        if (lastStartJson == -1) {
+            lastStartJson = content.lastIndexOf("{");
+        }
+        int lastEndJson = content.lastIndexOf("}");
+        
+        if (lastStartJson != -1 && lastEndJson != -1 && lastStartJson < lastEndJson) {
+            String potentialJson = content.substring(lastStartJson, lastEndJson + 1);
+            try {
+                // Validar que es JSON válido antes de retornarlo
+                objectMapper.readTree(potentialJson);
+                log.info("JSON válido extraído de respuesta con razonamiento");
+                return potentialJson;
+            } catch (Exception e) {
+                log.warn("JSON extraído no es válido, buscando alternativas...");
+            }
+        }
+        
+        // Buscar JSON tradicional (cualquier posición)
         int startJson = content.indexOf("{");
         int endJson = content.lastIndexOf("}");
         
         if (startJson != -1 && endJson != -1 && startJson < endJson) {
-            content = content.substring(startJson, endJson + 1);
-            log.info("JSON extraído de contenido mixto");
-            return content;
+            String jsonCandidate = content.substring(startJson, endJson + 1);
+            try {
+                objectMapper.readTree(jsonCandidate);
+                log.info("JSON válido extraído de contenido mixto");
+                return jsonCandidate;
+            } catch (Exception e) {
+                log.warn("Primer JSON encontrado no es válido...");
+            }
         }
         
         // Si no hay JSON, convertir formato de propiedades a JSON
@@ -259,9 +284,15 @@ public class AzureAiClient {
             return convertPropertiesToJson(content);
         }
         
+        // Último intento: buscar patrones de JSON malformados y repararlos
+        if (content.contains("\"question\"") && content.contains("\"correct_answer\"")) {
+            log.info("Detectado JSON malformado, intentando reparar...");
+            return repairMalformedJson(content);
+        }
+        
         // Si no se puede procesar, fallar
-        log.error("NO SE PUEDE PROCESAR EL CONTENIDO: '{}'", content);
-        throw new RuntimeException("No se puede convertir el contenido a JSON: " + content);
+        log.error("NO SE PUEDE PROCESAR EL CONTENIDO: '{}'", content.substring(0, Math.min(200, content.length())));
+        throw new RuntimeException("No se puede convertir el contenido a JSON válido");
     }
     
     /**
@@ -341,6 +372,66 @@ public class AzureAiClient {
     }
 
     /**
+     * Intenta reparar JSON malformado extrayendo los campos principales
+     */
+    private String repairMalformedJson(String content) {
+        try {
+            log.info("Intentando reparar JSON malformado...");
+            
+            // Extraer campos usando patrones más flexibles
+            String question = extractFieldWithPattern(content, "\"question\"\\s*:\\s*\"([^\"]+)\"");
+            String correctAnswer = extractFieldWithPattern(content, "\"correct_answer\"\\s*:\\s*\"([^\"]+)\"");
+            String explanation = extractFieldWithPattern(content, "\"explanation\"\\s*:\\s*\"([^\"]+)\"");
+            
+            // Buscar array de opciones
+            String optionsPattern = "\"options\"\\s*:\\s*\\[([^\\]]+)\\]";
+            java.util.regex.Pattern pattern = java.util.regex.Pattern.compile(optionsPattern);
+            java.util.regex.Matcher matcher = pattern.matcher(content);
+            
+            String options = "[\"Opción 1\", \"Opción 2\", \"Opción 3\", \"Opción 4\"]"; // Default
+            if (matcher.find()) {
+                String optionsContent = matcher.group(1);
+                // Limpiar y formatear las opciones
+                options = "[" + optionsContent.replaceAll("'", "\"") + "]";
+            }
+            
+            // Construir JSON válido
+            String repairedJson = String.format(
+                "{\"question\": \"%s\", \"correct_answer\": \"%s\", \"options\": %s, \"explanation\": \"%s\"}",
+                escapeJson(question),
+                escapeJson(correctAnswer),
+                options,
+                escapeJson(explanation)
+            );
+            
+            // Validar que el JSON reparado es válido
+            objectMapper.readTree(repairedJson);
+            log.info("JSON reparado exitosamente");
+            return repairedJson;
+            
+        } catch (Exception e) {
+            log.error("Error reparando JSON malformado", e);
+            throw new RuntimeException("No se pudo reparar el JSON malformado: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Extrae un campo usando patrón regex
+     */
+    private String extractFieldWithPattern(String content, String pattern) {
+        try {
+            java.util.regex.Pattern regexPattern = java.util.regex.Pattern.compile(pattern);
+            java.util.regex.Matcher matcher = regexPattern.matcher(content);
+            if (matcher.find()) {
+                return matcher.group(1);
+            }
+        } catch (Exception e) {
+            log.warn("Error extrayendo campo con patrón: {}", pattern);
+        }
+        return "Campo no encontrado";
+    }
+
+    /**
      * Hace una llamada REST directa a Azure AI como método principal
      */
     private String callAzureAiDirectly(String cleanPrompt) {
@@ -354,12 +445,12 @@ public class AzureAiClient {
             // Construir payload simple y limpio
             Map<String, Object> payload = new HashMap<>();
             payload.put("messages", List.of(
-                Map.of("role", "system", "content", "Responde SOLO con JSON válido usando comillas dobles. Formato exacto: {\"question\": \"pregunta completa\", \"correct_answer\": \"respuesta correcta\", \"options\": [\"opcion 1 completa\", \"opcion 2 completa\", \"opcion 3 completa\", \"opcion 4 completa\"], \"explanation\": \"explicación detallada\"}. NO uses comillas simples. Las opciones deben ser respuestas completas, no solo letras."),
+                Map.of("role", "system", "content", "Eres un experto profesor de matemáticas con capacidades de razonamiento avanzado. PIENSA PASO A PASO: incluye tu proceso completo de razonamiento, luego termina con el JSON exacto solicitado. Asegúrate de que la pregunta tenga sentido, resuélvela correctamente, y verifica que tu respuesta sea coherente. Usa español en todo el contenido. Formato final: {\"question\": \"pregunta completa en español\", \"correct_answer\": \"respuesta correcta\", \"options\": [\"opcion correcta\", \"error común 1\", \"error común 2\", \"error común 3\"], \"explanation\": \"explicación paso a paso en español\"}"),
                 Map.of("role", "user", "content", cleanPrompt)
             ));
-            payload.put("max_tokens", 2000);
-            payload.put("temperature", 0.7);
-            payload.put("top_p", 0.7);
+            payload.put("max_tokens", 4000);
+            payload.put("temperature", 1.2);
+            payload.put("top_p", 0.95);
             
             // Headers correctos
             HttpHeaders headers = new HttpHeaders();

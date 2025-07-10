@@ -39,18 +39,43 @@ public class ExercisePromptBuilder {
         String learningPointTitle = learningPointOpt.map(LearningPoint::getTitle).orElse("Matematicas");
         String difficulty = exerciseTemplate.getDifficulty() != null ? exerciseTemplate.getDifficulty() : "level_1";
 
-        // Construir prompt ESPECÍFICO y CLARO para generar ejercicios completos
+        // Construir prompt INTELIGENTE y ESPECÍFICO para modelo de razonamiento
         String prompt = String.format(
-            "Crea un ejercicio de %s dificultad %s. Genera 4 opciones completas y realistas. " +
-            "EJEMPLO para fracciones: {\"question\": \"Cual es el resultado de 1/2 + 1/4?\", " +
-            "\"correct_answer\": \"3/4\", \"options\": [\"3/4\", \"2/6\", \"1/3\", \"2/4\"], " +
-            "\"explanation\": \"Para sumar fracciones: 1/2 + 1/4 = 2/4 + 1/4 = 3/4\"}. " +
-            "Usa comillas dobles, opciones realistas, no solo letras A B C D.",
-            cleanText(learningPointTitle), 
+            "Eres un experto profesor de matemáticas que debe crear un ejercicio educativo de alta calidad. " +
+            "TEMA: %s, DIFICULTAD: %s. " +
+            
+            "PROCESO OBLIGATORIO: " +
+            "1. PRIMERO: Razona internamente sobre qué concepto específico evaluar " +
+            "2. SEGUNDO: Crea una pregunta clara y pedagógicamente válida " +
+            "3. TERCERO: Resuelve la pregunta paso a paso para obtener la respuesta correcta " +
+            "4. CUARTO: Genera 3 opciones incorrectas pero plausibles (errores comunes) " +
+            "5. QUINTO: Verifica que la respuesta correcta es coherente con la pregunta " +
+            "6. SEXTO: Escribe una explicación clara del proceso de solución " +
+            
+            "REQUISITOS ESTRICTOS: " +
+            "- TODO en español (pregunta, opciones, explicación) " +
+            "- La pregunta debe ser específica y unívoca " +
+            "- Las opciones deben ser respuestas completas, no letras (A, B, C, D) " +
+            "- Las opciones incorrectas deben representar errores conceptuales reales " +
+            "- La explicación debe enseñar el método correcto paso a paso " +
+            "- Usa variedad en la formulación (no siempre 'Cuál es el resultado de...') " +
+            
+            "FORMATO DE SALIDA (JSON válido): " +
+            "{\"question\": \"[pregunta específica en español]\", " +
+            "\"correct_answer\": \"[respuesta correcta completa]\", " +
+            "\"options\": [\"[opción correcta]\", \"[error común 1]\", \"[error común 2]\", \"[error común 3]\"], " +
+            "\"explanation\": \"[explicación paso a paso del método correcto en español]\"} " +
+            
+            "EJEMPLO PARA FRACCIONES: " +
+            "{\"question\": \"María comió 2/5 de una pizza y Juan comió 1/3 de la misma pizza. ¿Qué fracción de la pizza comieron entre los dos?\", " +
+            "\"correct_answer\": \"11/15\", " +
+            "\"options\": [\"11/15\", \"3/8\", \"2/3\", \"1/2\"], " +
+            "\"explanation\": \"Para sumar fracciones con diferentes denominadores: 2/5 + 1/3. Primero encontramos el mínimo común múltiplo de 5 y 3, que es 15. Convertimos: 2/5 = 6/15 y 1/3 = 5/15. Sumamos: 6/15 + 5/15 = 11/15\"}", 
+            learningPointTitle, 
             difficulty
         );
 
-        log.debug("Prompt construido. Longitud: {} caracteres", prompt.length());
+        log.debug("Prompt inteligente construido. Longitud: {} caracteres", prompt.length());
         return prompt;
     }
 
@@ -68,13 +93,30 @@ public class ExercisePromptBuilder {
         String learningPointTitle = learningPointOpt.map(LearningPoint::getTitle).orElse("Matematicas");
         String difficulty = exerciseTemplate.getDifficulty() != null ? exerciseTemplate.getDifficulty() : "level_1";
 
-        // Prompt ULTRA SIMPLE para pool
+        // Prompt INTELIGENTE para pool - versión más directa pero manteniendo calidad
         String prompt = String.format(
-            "Crea ejercicio de %s nivel %s. " +
-            "Responde JSON: {\"question\": \"texto\", \"correct_answer\": \"respuesta\", " +
-            "\"options\": [\"A\", \"B\", \"C\", \"D\"], \"explanation\": \"explicacion\"}. " +
-            "Solo ASCII, sin acentos, una linea.",
-            cleanText(learningPointTitle),
+            "Como experto profesor de matemáticas, crea un ejercicio educativo de calidad sobre %s nivel %s. " +
+            
+            "PROCESO: " +
+            "1. Razona qué concepto específico evaluar " +
+            "2. Crea pregunta clara en español " +
+            "3. Resuelve correctamente " +
+            "4. Genera opciones incorrectas plausibles " +
+            "5. Verifica coherencia " +
+            
+            "REQUISITOS: " +
+            "- TODO en español " +
+            "- Pregunta específica y clara " +
+            "- 4 opciones completas (no letras A,B,C,D) " +
+            "- Opciones incorrectas = errores comunes reales " +
+            "- Explicación paso a paso " +
+            "- Varía la formulación de preguntas " +
+            
+            "FORMATO JSON: " +
+            "{\"question\": \"[pregunta en español]\", \"correct_answer\": \"[respuesta completa]\", " +
+            "\"options\": [\"[correcta]\", \"[error 1]\", \"[error 2]\", \"[error 3]\"], " +
+            "\"explanation\": \"[método paso a paso en español]\"}",
+            learningPointTitle,
             difficulty
         );
 
