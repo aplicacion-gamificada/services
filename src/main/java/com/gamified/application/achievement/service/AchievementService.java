@@ -34,4 +34,10 @@ public class AchievementService {
     public Map<String, Object> getCountAchievementByUser(int userId){
         return achievementRepository.getCountAchievementByUser(userId);
     }
+    public Map<String, Object> getAchievementStats(int userId) {
+        return achievementRepository.getAchievementStats(userId);
+    }
+    public Map<String, Object> getTotalPoints(int userId) {
+        return achievementRepository.getTotalPoints(userId);
+    }
 }

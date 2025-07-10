@@ -2,14 +2,17 @@ package com.gamified.application.clasroom.service;
 
 import com.gamified.application.clasroom.model.dto.request.ClassroomRequestDto;
 import com.gamified.application.clasroom.model.dto.response.ClassroomResponseDto;
+import com.gamified.application.clasroom.repository.ClassroomRepository;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * Servicio para operaciones de gestión de aulas
  */
 public interface ClassroomService {
-    
     // ===================================================================
     // CLASSROOM MANAGEMENT
     // ===================================================================
@@ -152,4 +155,6 @@ public interface ClassroomService {
      * @return true si está inscrito
      */
     boolean isStudentEnrolled(Integer classroomId, Integer studentProfileId);
+
+    Map<String, Object> getClassroomDataByUserId(int userId);
 } 

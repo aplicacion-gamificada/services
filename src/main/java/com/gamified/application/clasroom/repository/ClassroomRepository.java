@@ -5,6 +5,7 @@ import com.gamified.application.clasroom.model.entity.Enrollment;
 import com.gamified.application.clasroom.model.dto.response.ClassroomResponseDto;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -124,4 +125,6 @@ public interface ClassroomRepository {
      * @return Estadísticas del aula
      */
     Optional<ClassroomResponseDto.ClassroomStatsDto> getClassroomStats(Integer classroomId);
-} 
+
+    Map<String, Object> getClassroomDataByUserId(int userId);
+}

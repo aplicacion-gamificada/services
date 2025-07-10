@@ -7,14 +7,18 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Repository;
 
 import java.sql.PreparedStatement;
 import java.sql.Statement;
+import java.sql.Types;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -26,6 +30,7 @@ import java.util.Optional;
 public class ClassroomRepositoryImpl implements ClassroomRepository {
 
     private final JdbcTemplate jdbcTemplate;
+    private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
 
     // ===================================================================
     // CLASSROOM OPERATIONS
@@ -380,5 +385,17 @@ public class ClassroomRepositoryImpl implements ClassroomRepository {
                 .lastActivity(rs.getTimestamp("last_activity") != null ? 
                         rs.getTimestamp("last_activity").toLocalDateTime() : null)
                 .build();
+    }
+
+    public Map<String, Object> getClassroomDataByUserId(int userId){
+        try{
+            MapSqlParameterSource parameters = new MapSqlParameterSource();
+            parameters.addValue("userId", userId, Types.INTEGER);
+
+            String sql = "EXEC sp_get_classroom_name_by_student @user_id = :userId";
+            return namedParameterJdbcTemplate.queryForMap(sql, parameters);
+        }catch (Exception ex){
+            throw new RuntimeException("Error al obtener el total de puntos: " + ex.getMessage(), ex);
+        }
     }
 } 

@@ -12,4 +12,6 @@ public interface IAchievementRepository {
     Map<String, Object> unlockAchievement(int userId, int achievementId, int pointsAwarded);
     Map<String, Object> getCountAchievementByUser(int userId);
     Integer getUserIdFromStudentProfile(Integer studentProfileId);
+    Map<String, Object> getAchievementStats(int userId);
+    Map<String, Object> getTotalPoints(int userId);
 }

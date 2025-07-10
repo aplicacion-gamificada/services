@@ -46,15 +46,42 @@ public class AchievementRepositoryImpl implements IAchievementRepository {
     public List<Map<String, Object>> getUnlockedAchievementsByUser(int userId) {
         try {
             MapSqlParameterSource parameters = new MapSqlParameterSource();
-            parameters.addValue("@user_id", userId, Types.INTEGER);
+            parameters.addValue("userId", userId, Types.INTEGER);
 
-            String sql = "EXEC sp_get_unlocked_achievements_by_user : userId";
+            String sql = "EXEC sp_get_unlocked_achievements_by_user @user_id = :userId";
             return namedParameterJdbcTemplate.queryForList(sql, parameters);
 
         } catch (Exception ex) {
             throw new RuntimeException("Error al obtener logros desbloqueados: " + ex.getMessage(), ex);
         }
     }
+
+    @Override
+    public Map<String, Object> getAchievementStats(int userId){
+        try{
+            MapSqlParameterSource parameters = new MapSqlParameterSource();
+            parameters.addValue("userId", userId, Types.INTEGER);
+
+            String sql = "EXEC sp_get_count_achievement_by_user @user_id = :userId";
+            return namedParameterJdbcTemplate.queryForMap(sql, parameters);
+        } catch (Exception ex) {
+            throw new RuntimeException("Error al obtener el total de logros: " + ex.getMessage(), ex);
+        }
+    }
+
+    @Override
+    public Map<String, Object> getTotalPoints(int userId){
+        try{
+            MapSqlParameterSource parameters = new MapSqlParameterSource();
+            parameters.addValue("userId", userId, Types.INTEGER);
+
+            String sql = "EXEC sp_get_points_by_user @user_id = :userId";
+            return namedParameterJdbcTemplate.queryForMap(sql, parameters);
+        }catch (Exception ex){
+            throw new RuntimeException("Error al obtener el total de puntos: " + ex.getMessage(), ex);
+        }
+    }
+
 
     @Override
     public List<Map<String, Object>> getAchievements() {
