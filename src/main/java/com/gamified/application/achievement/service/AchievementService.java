@@ -19,6 +19,13 @@ public class AchievementService {
     public List<Map<String, Object>> getUnlockedAchievementsByUser(int userId){
         return achievementRepository.getUnlockedAchievementsByUser(userId);
     }
+
+    public Map<String, Object> getAchievementStats(int userId) {
+        return achievementRepository.getAchievementStats(userId);
+    }
+    public Map<String, Object> getTotalPoints(int userId) {
+        return achievementRepository.getTotalPoints(userId);
+    }
     public List<Map<String, Object>> getAchievements(){
         return achievementRepository.getAchievements();
     }
