@@ -127,4 +127,5 @@ public interface ClassroomRepository {
     Optional<ClassroomResponseDto.ClassroomStatsDto> getClassroomStats(Integer classroomId);
 
     Map<String, Object> getClassroomDataByUserId(int userId);
+    List<Map<String, Object>> getClassmatesByUserId(int userId);
 }

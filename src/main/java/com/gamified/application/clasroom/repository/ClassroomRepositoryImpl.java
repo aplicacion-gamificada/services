@@ -395,7 +395,19 @@ public class ClassroomRepositoryImpl implements ClassroomRepository {
             String sql = "EXEC sp_get_classroom_name_by_student @user_id = :userId";
             return namedParameterJdbcTemplate.queryForMap(sql, parameters);
         }catch (Exception ex){
-            throw new RuntimeException("Error al obtener el total de puntos: " + ex.getMessage(), ex);
+            throw new RuntimeException("Error al obtener la data del aula: " + ex.getMessage(), ex);
+        }
+    }
+
+    public List<Map<String, Object>> getClassmatesByUserId(int userId){
+        try{
+            MapSqlParameterSource parameters = new MapSqlParameterSource();
+            parameters.addValue("userId", userId, Types.INTEGER);
+
+            String sql = "EXEC sp_get_classmates_by_student @user_id = :userId";
+            return namedParameterJdbcTemplate.queryForList(sql, parameters);
+        }catch (Exception ex){
+            throw new RuntimeException("Error al obtener la lista de compañeros: " + ex.getMessage(), ex);
         }
     }
 } 

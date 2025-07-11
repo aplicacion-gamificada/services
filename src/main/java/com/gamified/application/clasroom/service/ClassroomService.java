@@ -157,4 +157,5 @@ public interface ClassroomService {
     boolean isStudentEnrolled(Integer classroomId, Integer studentProfileId);
 
     Map<String, Object> getClassroomDataByUserId(int userId);
+    List<Map<String, Object>> getClassmatesByUserId(int userId);
 } 

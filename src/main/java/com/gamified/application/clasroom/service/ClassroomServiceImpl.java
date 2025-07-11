@@ -447,4 +447,9 @@ public class ClassroomServiceImpl implements ClassroomService {
     public Map<String, Object> getClassroomDataByUserId(int userId){
         return classroomRepository.getClassroomDataByUserId(userId);
     }
+
+    @Override
+    public List<Map<String, Object>> getClassmatesByUserId(int userId){
+        return classroomRepository.getClassmatesByUserId(userId);
+    }
 } 
