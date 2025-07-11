@@ -1,0 +1,24 @@
+{
+    "testTeacher": {
+        "firstName": "Carlos",
+        "lastName": "Profesor",
+        "email": "carlos.profesor@example.com",
+        "password": "TeacherPass123!",
+        "stemAreaId": 1
+    },
+    "testGuardian": {
+        "firstName": "María",
+        "lastName": "Guardián",
+        "email": "maria.guardian@example.com", 
+        "password": "GuardianPass123!",
+        "phone": "+51999888777"
+    },
+    "testStudent": {
+        "firstName": "Ana",
+        "lastName": "Estudiante",
+        "email": "ana.estudiante@example.com",
+        "password": "StudentPass123!",
+        "username": "ana_estudiante",
+        "birth_date": "2010-05-15T00:00:00Z"
+    }
+}

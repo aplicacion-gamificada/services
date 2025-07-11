@@ -30,4 +30,26 @@ build/
 !**/src/test/**/build/
 
 ### VS Code ###
-.vscode/
+.vscode
+
+# Ignorar scripts de PowerShell y archivos de texto
+*.ps1
+*.txt
+*.sql
+*.bat
+*.sh
+src/main/resources/application.properties
+api-docs.json
+GUIA_TESTING_DETALLADA.md
+README-TESTS.md
+setup-test-database.md
+src/test/resources/application-test.properties
+*.md
+GUIA.md
+TEACHER_ENDPOINTS_IMPLEMENTATION.md
+GUIA.md
+/.cursor
+.cursorignore
+*.pdf
+/data
+.env

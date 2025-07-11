@@ -1,0 +1,289 @@
+package com.gamified.application.user.controller;
+
+import com.gamified.application.user.model.dto.request.UserRequestDto;
+import com.gamified.application.shared.model.dto.response.CommonResponseDto;
+import com.gamified.application.user.model.dto.response.UserResponseDto;
+import com.gamified.application.auth.service.auth.TokenService;
+import com.gamified.application.user.service.UserProfileService;
+import com.gamified.application.user.service.UserRegistrationService;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.*;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
+import java.util.List;
+
+/**
+ * Controlador para operaciones relacionadas con usuarios
+ */
+@RestController
+@RequestMapping("/users")
+@RequiredArgsConstructor
+@Tag(
+        name = "User ",
+        description = "Provides endpoints for managing user profiles, passwords, and related operations."
+)
+public class UserController {
+
+    private final UserProfileService userProfileService;
+    private final UserRegistrationService userRegistrationService;
+    private final TokenService tokenService;
+
+    /**
+     * Obtiene el perfil del usuario actual
+     * @param authentication Datos de autenticación del usuario
+     * @param request Request HTTP para extraer el token
+     * @return Perfil del usuario según su rol
+     */
+    @GetMapping("/profile")
+    public ResponseEntity<?> getCurrentUserProfile(Authentication authentication, HttpServletRequest request) {
+        try {
+            if (authentication == null || !authentication.isAuthenticated()) {
+                return ResponseEntity.status(401).body(
+                        new CommonResponseDto(false, "Usuario no autenticado", null)
+                );
+            }
+            
+            Long userId = getUserIdFromToken(request);
+            String userRole = authentication.getAuthorities().iterator().next().getAuthority();
+            
+            if (userRole.equals("ROLE_STUDENT")) {
+                UserResponseDto.StudentResponseDto profile = userProfileService.getStudentProfile(userId);
+                return ResponseEntity.ok(profile);
+            } else if (userRole.equals("ROLE_TEACHER")) {
+                UserResponseDto.TeacherResponseDto profile = userProfileService.getTeacherProfile(userId);
+                return ResponseEntity.ok(profile);
+            } else if (userRole.equals("ROLE_GUARDIAN")) {
+                UserResponseDto.GuardianResponseDto profile = userProfileService.getGuardianProfile(userId);
+                return ResponseEntity.ok(profile);
+            } else {
+                return ResponseEntity.badRequest().body(
+                        new CommonResponseDto(false, "Rol de usuario no válido", null)
+                );
+            }
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(
+                    new CommonResponseDto(false, "Error al obtener el perfil: " + e.getMessage(), null)
+            );
+        }
+    }
+    
+    /**
+     * Obtiene el perfil de un estudiante específico
+     * @param userId ID del usuario
+     * @return Perfil del estudiante
+     */
+    @GetMapping("/students/{userId}")
+    @PreAuthorize("hasAnyRole('TEACHER', 'GUARDIAN') or #userId == authentication.principal.id")
+    public ResponseEntity<UserResponseDto.StudentResponseDto> getStudentProfile(@PathVariable Long userId) {
+        UserResponseDto.StudentResponseDto profile = userProfileService.getStudentProfile(userId);
+        return ResponseEntity.ok(profile);
+    }
+    
+    /**
+     * Obtiene el perfil de un profesor específico
+     * @param userId ID del usuario
+     * @return Perfil del profesor
+     */
+    @GetMapping("/teachers/{userId}")
+    @PreAuthorize("hasRole('TEACHER') or #userId == authentication.principal.id")
+    public ResponseEntity<UserResponseDto.TeacherResponseDto> getTeacherProfile(@PathVariable Long userId) {
+        UserResponseDto.TeacherResponseDto profile = userProfileService.getTeacherProfile(userId);
+        return ResponseEntity.ok(profile);
+    }
+    
+    /**
+     * Obtiene el perfil de un tutor específico
+     * @param userId ID del usuario
+     * @return Perfil del tutor
+     */
+    @GetMapping("/guardians/{userId}")
+    @PreAuthorize("hasRole('TEACHER') or #userId == authentication.principal.id")
+    public ResponseEntity<UserResponseDto.GuardianResponseDto> getGuardianProfile(@PathVariable Long userId) {
+        UserResponseDto.GuardianResponseDto profile = userProfileService.getGuardianProfile(userId);
+        return ResponseEntity.ok(profile);
+    }
+    
+    /**
+     * Actualiza el perfil de un estudiante
+     * @param userId ID del usuario
+     * @param updateRequest Datos a actualizar
+     * @return Perfil actualizado
+     */
+    @PutMapping("/students/{userId}")
+    @PreAuthorize("#userId == authentication.principal.id or hasRole('GUARDIAN')")
+    public ResponseEntity<UserResponseDto.StudentResponseDto> updateStudentProfile(
+            @PathVariable Long userId,
+            @Valid @RequestBody UserRequestDto.StudentUpdateRequestDto updateRequest) {
+        
+        UserResponseDto.StudentResponseDto profile = userProfileService.updateStudentProfile(userId, updateRequest);
+        return ResponseEntity.ok(profile);
+    }
+    
+    /**
+     * Actualiza el perfil de un profesor
+     * @param userId ID del usuario
+     * @param updateRequest Datos a actualizar
+     * @return Perfil actualizado
+     */
+    @PutMapping("/teachers/{userId}")
+    @PreAuthorize("#userId == authentication.principal.id")
+    public ResponseEntity<UserResponseDto.TeacherResponseDto> updateTeacherProfile(
+            @PathVariable Long userId,
+            @Valid @RequestBody UserRequestDto.TeacherUpdateRequestDto updateRequest) {
+        
+        UserResponseDto.TeacherResponseDto profile = userProfileService.updateTeacherProfile(userId, updateRequest);
+        return ResponseEntity.ok(profile);
+    }
+    
+    /**
+     * Actualiza el perfil de un tutor
+     * @param userId ID del usuario
+     * @param updateRequest Datos a actualizar
+     * @return Perfil actualizado
+     */
+    @PutMapping("/guardians/{userId}")
+    @PreAuthorize("#userId == authentication.principal.id")
+    public ResponseEntity<UserResponseDto.GuardianResponseDto> updateGuardianProfile(
+            @PathVariable Long userId,
+            @Valid @RequestBody UserRequestDto.GuardianUpdateRequestDto updateRequest) {
+        
+        UserResponseDto.GuardianResponseDto profile = userProfileService.updateGuardianProfile(userId, updateRequest);
+        return ResponseEntity.ok(profile);
+    }
+    
+    /**
+     * Actualiza la contraseña del usuario
+     * @param userId ID del usuario
+     * @param updateRequest Datos para actualizar la contraseña
+     * @return Resultado de la operación
+     */
+    @PutMapping("/{userId}/password")
+    @PreAuthorize("#userId == authentication.principal.id")
+    public ResponseEntity<CommonResponseDto> updatePassword(
+            @PathVariable Long userId,
+            @Valid @RequestBody UserRequestDto.PasswordUpdateRequestDto updateRequest,
+            HttpServletRequest request) {
+        
+        // Validar que las contraseñas coincidan
+        if (!updateRequest.getNewPassword().equals(updateRequest.getConfirmPassword())) {
+            return ResponseEntity.badRequest().body(
+                    new CommonResponseDto(false, "Las contraseñas no coinciden", null)
+            );
+        }
+        
+        CommonResponseDto response = userProfileService.updatePassword(userId, updateRequest);
+        return ResponseEntity.ok(response);
+    }
+    
+    /**
+     * Actualiza la foto de perfil del usuario
+     * @param userId ID del usuario
+     * @param profilePictureUrl URL de la nueva foto
+     * @return Resultado de la operación
+     */
+    @PutMapping("/{userId}/profile-picture")
+    @PreAuthorize("#userId == authentication.principal.id")
+    public ResponseEntity<CommonResponseDto> updateProfilePicture(
+            @PathVariable Long userId,
+            @RequestBody String profilePictureUrl) {
+        
+        CommonResponseDto response = userProfileService.updateProfilePicture(userId, profilePictureUrl);
+        return ResponseEntity.ok(response);
+    }
+    
+    /**
+     * Desactiva la cuenta del usuario
+     * @param userId ID del usuario
+     * @return Resultado de la operación
+     */
+    @DeleteMapping("/{userId}")
+    @PreAuthorize("#userId == authentication.principal.id")
+    public ResponseEntity<CommonResponseDto> deactivateAccount(@PathVariable Long userId) {
+        CommonResponseDto response = userProfileService.deactivateAccount(userId);
+        return ResponseEntity.ok(response);
+    }
+    
+    // NOTA: Los endpoints de gestión guardián-estudiante se movieron a InstitutionController:
+    // - GET /institutions/{institutionId}/guardians/{guardianUserId}/students  
+    // - POST /institutions/{institutionId}/assign-guardian
+    
+    /**
+     * Busca usuarios por término de búsqueda
+     * TEACHER: búsqueda limitada a su scope (estudiantes de sus clases)
+     * ADMIN: búsqueda en toda la institución
+     * @param searchTerm Término de búsqueda
+     * @param roleFilter Filtro de rol (opcional)
+     * @param limit Límite de resultados (opcional)
+     * @return Lista de perfiles que coinciden
+     */
+    @GetMapping("/search")
+    @PreAuthorize("hasAnyRole('TEACHER', 'ADMIN')")
+    public ResponseEntity<List<UserResponseDto.BasicUserResponseDto>> searchUsers(
+            @RequestParam String searchTerm,
+            @RequestParam(required = false) String roleFilter,
+            @RequestParam(required = false, defaultValue = "20") int limit,
+            Authentication authentication) {
+        
+        Long currentUserId = getUserIdFromAuthentication(authentication);
+        
+        // Determinar si el usuario actual es TEACHER o ADMIN
+        boolean isAdmin = authentication.getAuthorities().stream()
+            .anyMatch(auth -> auth.getAuthority().equals("ROLE_ADMIN"));
+        
+        List<UserResponseDto.BasicUserResponseDto> users;
+        
+        if (isAdmin) {
+            // ADMIN: búsqueda completa en toda la institución
+            users = userProfileService.searchUsers(searchTerm, roleFilter, limit);
+        } else {
+            // TEACHER: búsqueda limitada a estudiantes de sus clases
+            users = userProfileService.searchUsersInTeacherScope(currentUserId, searchTerm, roleFilter, limit);
+        }
+        
+        return ResponseEntity.ok(users);
+    }
+    
+    /**
+     * Extrae el ID de usuario del token JWT en la request
+     * @param request Request HTTP
+     * @return ID del usuario
+     */
+    private Long getUserIdFromToken(HttpServletRequest request) {
+        String authHeader = request.getHeader("Authorization");
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            throw new IllegalStateException("Token de autorización no encontrado");
+        }
+        
+        String token = authHeader.substring(7);
+        Long userId = tokenService.extractUserId(token);
+        if (userId == null) {
+            throw new IllegalStateException("No se pudo extraer el ID de usuario del token");
+        }
+        
+        return userId;
+    }
+    
+    /**
+     * Extrae el ID de usuario de la autenticación (método legacy)
+     * @param authentication Autenticación actual
+     * @return ID del usuario
+     */
+    private Long getUserIdFromAuthentication(Authentication authentication) {
+        // Verificar si la autenticación es null
+        if (authentication == null) {
+            throw new IllegalStateException("Usuario no autenticado");
+        }
+        
+        // Obtener el nombre de usuario (que es el ID del usuario en nuestro caso)
+        try {
+            return Long.valueOf(authentication.getName());
+        } catch (NumberFormatException e) {
+            throw new IllegalStateException("El ID de usuario no es válido: " + authentication.getName());
+        }
+    }
+} 

@@ -1,0 +1,13 @@
+{
+    "testInstitution": {
+        "name": "Universidad de Prueba",
+        "address": "Calle Principal 123",
+        "city": "Lima",
+        "state": "Lima",
+        "country": "Perú",
+        "postalCode": "15001",
+        "phone": "+51-1-234-5678",
+        "email": "contacto@universidadprueba.edu.pe",
+        "website": "https://universidadprueba.edu.pe"
+    }
+}

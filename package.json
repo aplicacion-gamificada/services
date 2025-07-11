@@ -1,0 +1,22 @@
+{
+    "name": "gamified-learning-tests",
+    "version": "1.0.0",
+    "description": "E2E Tests for Gamified Learning Platform",
+    "main": "tests/runners/run-all-tests.js",
+    "scripts": {
+        "test": "node tests/runners/run-all-tests.js",
+        "test:health": "node tests/e2e/01-health/health-connectivity.test.js",
+        "test:setup": "node tests/e2e/02-setup/institution-setup.test.js",
+        "test:registration": "node tests/e2e/03-registration/user-registration.test.js",
+        "test:users": "node tests/e2e/04-user-management/user-crud.test.js",
+        "test:auth": "node tests/e2e/05-authentication/authentication.test.js",
+        "test:cleanup": "node tests/runners/run-all-tests.js --cleanup",
+        "migrate": "node migrate-tests.js"
+    },
+    "keywords": ["testing", "e2e", "api", "javascript", "gamified-learning"],
+    "author": "Development Team",
+    "license": "MIT",
+    "engines": {
+        "node": ">=18.0.0"
+    }
+}
