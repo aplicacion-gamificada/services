@@ -628,7 +628,7 @@ public class ExerciseRepositoryImpl implements ExerciseRepository {
             String sql = """
                 SELECT COUNT(*) as attempt_count
                 FROM exercise_attempt ea
-                INNER JOIN generated_exercise ge ON ea.exercise_id = ge.id
+                INNER JOIN generated_exercise ge ON ea.generated_exercise_id = ge.id
                 WHERE ea.student_profile_id = :student_profile_id 
                   AND ge.exercise_template_id = :exercise_template_id
                 """;

@@ -36,9 +36,9 @@ public class LearningPointExerciseRepositoryImpl implements LearningPointExercis
             parameters.addValue("is_active", assignment.getIsActive() != null ? assignment.getIsActive() : 1, Types.INTEGER);
 
             String sql = """
-                INSERT INTO learning_point_exercise (learning_point_id, exercise_template_id, sequence_order,
+                INSERT INTO learning_point_exercise (learning_point_id, sequence_order,
                                                    generated_exercise_id, is_completed, is_active, assigned_at)
-                VALUES (:learning_point_id, :exercise_template_id, :sequence_order, 
+                VALUES (:learning_point_id, :sequence_order, 
                         :generated_exercise_id, :is_completed, :is_active, GETDATE())
                 """;
 
@@ -60,7 +60,7 @@ public class LearningPointExerciseRepositoryImpl implements LearningPointExercis
             parameters.addValue("learning_point_id", learningPointId, Types.INTEGER);
 
             String sql = """
-                SELECT id, learning_point_id, exercise_template_id, sequence_order, generated_exercise_id,
+                SELECT id, learning_point_id, sequence_order, generated_exercise_id,
                        is_completed, assigned_at, completed_at, is_active
                 FROM learning_point_exercise 
                 WHERE learning_point_id = :learning_point_id AND is_active = 1
@@ -88,7 +88,7 @@ public class LearningPointExerciseRepositoryImpl implements LearningPointExercis
             parameters.addValue("id", id, Types.INTEGER);
 
             String sql = """
-                SELECT id, learning_point_id, exercise_template_id, sequence_order, generated_exercise_id,
+                SELECT id, learning_point_id, sequence_order, generated_exercise_id,
                        is_completed, assigned_at, completed_at, is_active
                 FROM learning_point_exercise 
                 WHERE id = :id
@@ -147,7 +147,6 @@ public class LearningPointExerciseRepositoryImpl implements LearningPointExercis
                 UPDATE learning_point_exercise 
                 SET is_completed = 1, completed_at = GETDATE()
                 WHERE learning_point_id = :learning_point_id 
-                  AND exercise_template_id = :exercise_template_id
                   AND is_active = 1
                 """;
 
@@ -230,7 +229,7 @@ public class LearningPointExerciseRepositoryImpl implements LearningPointExercis
             parameters.addValue("learning_point_id", learningPointId, Types.INTEGER);
 
             String sql = """
-                SELECT TOP 1 id, learning_point_id, exercise_template_id, sequence_order, generated_exercise_id,
+                SELECT TOP 1 id, learning_point_id, sequence_order, generated_exercise_id,
                        is_completed, assigned_at, completed_at, is_active
                 FROM learning_point_exercise 
                 WHERE learning_point_id = :learning_point_id 
@@ -286,7 +285,6 @@ public class LearningPointExerciseRepositoryImpl implements LearningPointExercis
                     UPDATE learning_point_exercise 
                     SET sequence_order = :sequence_order 
                     WHERE learning_point_id = :learning_point_id 
-                      AND exercise_template_id = :exercise_template_id
                       AND is_active = 1
                     """;
 
