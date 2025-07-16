@@ -17,6 +17,7 @@ import com.gamified.application.learning.model.entity.LearningPoint;
 import com.gamified.application.exercise.service.AzureAiClient;
 import com.gamified.application.shared.exception.ResourceNotFoundException;
 import com.gamified.application.shared.model.event.DomainEvent;
+import com.gamified.application.learning.service.LearningPointExerciseService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -41,10 +42,12 @@ public class ExerciseServiceImpl implements ExerciseService {
     private final LearningRepository learningRepository; // Para obtener información del learning point
     private final GeneratedExerciseRepository generatedExerciseRepository; // Para el pool de ejercicios
     private final PromptTemplateRepository promptTemplateRepository; // Para las plantillas de prompts
-    private final PromptBuilderService promptBuilderService; // Para construir prompts dinámicos
+    private final PromptBuilderService promptBuilderService; // Para construir prompts dinámicos CON PromptTemplate
+    private final ExercisePromptBuilder exercisePromptBuilder; // Para fallback SIN PromptTemplate
     private final AzureAiClient azureAiClient; // Para llamar a la IA (se implementará en paso 3)
     private final ObjectMapper objectMapper;
     private final ApplicationEventPublisher eventPublisher;
+    private final LearningPointExerciseService learningPointExerciseService; // NUEVO: Para manejar tabla intermedia
 
     @Override
     public ExerciseResponseDto.NextExerciseDto getNextExercise(Integer studentId, Integer learningPointId, String difficulty) {
@@ -58,13 +61,16 @@ public class ExerciseServiceImpl implements ExerciseService {
         }
         LearningPoint learningPoint = learningPointOpt.get();
         
-        // 2. Buscar plantilla de ejercicio adecuada para este learning point
-        Optional<Exercise> exerciseTemplateOpt = exerciseRepository.findNextExerciseForLearningPoint(
+        // 2. ACTUALIZADO: Buscar ejercicio template usando la nueva estructura learning_point_exercise
+        Optional<Exercise> exerciseTemplateOpt = findNextExerciseTemplateForLearningPoint(
                 studentId, learningPointId, difficulty);
         
         if (exerciseTemplateOpt.isEmpty()) {
-            throw new ResourceNotFoundException("No hay plantillas de ejercicio disponibles para este learning point");
+            // NUEVO: Cuando no hay ejercicios pre-asignados, generar dinámicamente
+            log.info("No hay ejercicios pre-asignados para learning point {}, generando dinámicamente", learningPointId);
+            return generateDynamicExercisesForLearningPoint(studentId, learningPointId, difficulty);
         }
+        
         Exercise exerciseTemplate = exerciseTemplateOpt.get();
         
         // 3. Intentar obtener ejercicio del pool (ejercicio ya generado)
@@ -100,28 +106,55 @@ public class ExerciseServiceImpl implements ExerciseService {
     private GeneratedExercise generateNewExercise(Exercise exerciseTemplate, LearningPoint learningPoint, 
                                                  Integer studentId, String difficulty) {
         try {
-            // 1. Obtener plantilla de prompt
-            if (exerciseTemplate.getPromptTemplateId() == null) {
-                throw new IllegalStateException("La plantilla de ejercicio no tiene prompt_template_id configurado");
+            // 1. INTENTAR OBTENER PROMPTTEMPLATE APROPIADO
+            String builtPrompt;
+            PromptTemplate promptTemplate = null;
+            
+            if (exerciseTemplate.getPromptTemplateId() != null) {
+                // 1a. Usar PromptTemplate específico del ejercicio
+                Optional<PromptTemplate> promptTemplateOpt = promptTemplateRepository
+                        .findById(exerciseTemplate.getPromptTemplateId());
+                
+                if (promptTemplateOpt.isPresent()) {
+                    promptTemplate = promptTemplateOpt.get();
+                    // ACTUALIZADO: Obtener Unit en lugar de LearningPoint para el prompt
+                    Optional<com.gamified.application.learning.model.entity.Unit> unitOpt = 
+                            learningRepository.findUnitById(exerciseTemplate.getUnitId());
+                    com.gamified.application.learning.model.entity.Unit unit = unitOpt.orElse(null);
+                    
+                    builtPrompt = promptBuilderService.buildPrompt(
+                            promptTemplate, exerciseTemplate, unit, studentId, difficulty);
+                    log.info("Usando PromptTemplate específico: {}", promptTemplate.getName());
+                } else {
+                    log.warn("PromptTemplate con ID {} no encontrado, usando fallback", exerciseTemplate.getPromptTemplateId());
+                    builtPrompt = buildFallbackPrompt(exerciseTemplate, studentId);
+                }
+            } else {
+                // 1b. Buscar PromptTemplate por exerciseSubtype
+                // TODO: Implementar búsqueda por exerciseSubtype cuando se agregue el método al repositorio
+                log.warn("No hay promptTemplateId configurado para ejercicio {}, usando fallback", exerciseTemplate.getId());
+                builtPrompt = buildFallbackPrompt(exerciseTemplate, studentId);
             }
             
-            Optional<PromptTemplate> promptTemplateOpt = promptTemplateRepository
-                    .findById(exerciseTemplate.getPromptTemplateId());
+            // 2. Validar prompt construido antes de enviar a IA
+            log.debug("Prompt construido length: {}", builtPrompt != null ? builtPrompt.length() : "null");
+            log.debug("PromptTemplate presente: {}", promptTemplate != null ? promptTemplate.getName() : "null");
             
-            if (promptTemplateOpt.isEmpty()) {
-                throw new ResourceNotFoundException("Plantilla de prompt no encontrada con ID: " + 
-                        exerciseTemplate.getPromptTemplateId());
+            if (promptTemplate != null && !validateBuiltPrompt(builtPrompt)) {
+                log.warn("Prompt construido no es válido, usando fallback");
+                log.debug("Prompt que falló validación: {}", builtPrompt);
+                builtPrompt = buildFallbackPrompt(exerciseTemplate, studentId);
             }
-            PromptTemplate promptTemplate = promptTemplateOpt.get();
-            
-            // 2. Construir prompt dinámico
-            String builtPrompt = promptBuilderService.buildPrompt(
-                    promptTemplate, exerciseTemplate, learningPoint, studentId, difficulty);
             
             // 3. Llamar a Azure AI
             String aiResponseJson = azureAiClient.generateExerciseContent(builtPrompt);
             
-            // 4. Guardar ejercicio generado en el pool usando los nombres de campo correctos
+            // 4. Validar respuesta de IA si hay PromptTemplate
+            if (promptTemplate != null && !promptBuilderService.validateAiResponse(aiResponseJson, promptTemplate)) {
+                log.warn("Respuesta de IA no cumple validationRules, pero continuando...");
+            }
+            
+            // 5. Guardar ejercicio generado en el pool usando los nombres de campo correctos
             GeneratedExercise generatedExercise = GeneratedExercise.builder()
                     .exerciseTemplateId(exerciseTemplate.getId())
                     // Nota: En el esquema real no hay student_profile_id en generated_exercise
@@ -142,6 +175,46 @@ public class ExerciseServiceImpl implements ExerciseService {
             log.error("Error generando nuevo ejercicio: {}", e.getMessage(), e);
             throw new RuntimeException("No se pudo generar el ejercicio: " + e.getMessage());
         }
+    }
+
+    /**
+     * Construye un prompt fallback cuando no hay PromptTemplate disponible
+     */
+    private String buildFallbackPrompt(Exercise exerciseTemplate, Integer studentId) {
+        return exercisePromptBuilder.buildPromptForExercise(exerciseTemplate, studentId);
+    }
+
+    /**
+     * Valida que un prompt construido sea válido para enviar a IA
+     * (Diferente a validateTemplate que busca placeholders)
+     */
+    private boolean validateBuiltPrompt(String builtPrompt) {
+        if (builtPrompt == null || builtPrompt.trim().isEmpty()) {
+            log.debug("Prompt está vacío o es null");
+            return false;
+        }
+        
+        if (builtPrompt.length() < 50) {
+            log.debug("Prompt demasiado corto: {} caracteres", builtPrompt.length());
+            return false;
+        }
+        
+        // Verificar que no tenga placeholders sin reemplazar
+        if (builtPrompt.contains("{{") && builtPrompt.contains("}}")) {
+            log.debug("Prompt contiene placeholders sin reemplazar");
+            return false;
+        }
+        
+        // Verificar que tenga palabras clave mínimas para un ejercicio matemático
+        String lowerPrompt = builtPrompt.toLowerCase();
+        if (!lowerPrompt.contains("ejercicio") && !lowerPrompt.contains("pregunta") && 
+            !lowerPrompt.contains("problema") && !lowerPrompt.contains("question")) {
+            log.debug("Prompt no parece ser de un ejercicio educativo");
+            return false;
+        }
+        
+        log.debug("Prompt construido es válido: {} caracteres", builtPrompt.length());
+        return true;
     }
 
     /**
@@ -250,51 +323,78 @@ public class ExerciseServiceImpl implements ExerciseService {
         ExerciseResponseDto.ExerciseConfigDto.ExerciseConfigDtoBuilder configBuilder = 
                 ExerciseResponseDto.ExerciseConfigDto.builder();
         
-        // Configuración base común
-        configBuilder
-                .showTimer(true)
-                .showHints(true)
-                .allowRetry(false); // Solo un intento por defecto
-        
-        // Configuración específica por tipo de ejercicio
-        switch (exerciseTypeName) {
-            case "multiple_choice":
-                configBuilder
-                        .maxTime(300) // 5 minutos
-                        .allowPartialScore(false)
-                        .shuffleItems(true);
-                break;
-                
-            case "drag_and_drop":
-                configBuilder
-                        .maxTime(420) // 7 minutos
-                        .allowPartialScore(true)
-                        .shuffleItems(true)
-                        .itemCount(getItemCount(aiContent));
-                break;
-                
-            case "numeric_input":
-                configBuilder
-                        .maxTime(480) // 8 minutos
-                        .allowPartialScore(false)
-                        .shuffleItems(false);
-                break;
-                
-            case "ordering":
-                configBuilder
-                        .maxTime(360) // 6 minutos
-                        .allowPartialScore(true)
-                        .shuffleItems(true)
-                        .itemCount(getItemCount(aiContent));
-                break;
-                
-            default:
-                configBuilder
-                        .maxTime(exerciseTemplate.getEstimatedTimeMinutes() * 60)
-                        .allowPartialScore(false)
-                        .shuffleItems(false);
+        // 1. PRIMERO: Usar configuración específica del ejercicio si existe
+        Map<String, Object> exerciseConfig = exerciseTemplate.getExerciseConfigAsMap();
+        if (!exerciseConfig.isEmpty()) {
+            // Aplicar configuración específica del ejercicio
+            configBuilder
+                .showTimer((Boolean) exerciseConfig.getOrDefault("showTimer", true))
+                .maxTime((Integer) exerciseConfig.getOrDefault("maxTime", 300))
+                .allowPartialScore((Boolean) exerciseConfig.getOrDefault("allowPartialScore", true))
+                .showHints((Boolean) exerciseConfig.getOrDefault("showHints", true))
+                .allowRetry((Boolean) exerciseConfig.getOrDefault("allowRetry", false))
+                .itemCount((Integer) exerciseConfig.getOrDefault("itemCount", null))
+                .shuffleItems((Boolean) exerciseConfig.getOrDefault("shuffleItems", false));
+            
+            return configBuilder.build();
         }
         
+        // 2. SEGUNDO: Usar configuración por defecto del tipo de ejercicio
+        if (exerciseTemplate.getExerciseType() != null) {
+            Map<String, Object> defaultConfig = exerciseTemplate.getExerciseType().getDefaultConfigAsMap();
+            if (!defaultConfig.isEmpty()) {
+                // Aplicar configuración por defecto del tipo
+                configBuilder
+                    .showTimer((Boolean) defaultConfig.getOrDefault("showTimer", true))
+                    .maxTime((Integer) defaultConfig.getOrDefault("maxTime", 300))
+                    .allowPartialScore((Boolean) defaultConfig.getOrDefault("allowPartialScore", true))
+                    .showHints((Boolean) defaultConfig.getOrDefault("showHints", true))
+                    .allowRetry((Boolean) defaultConfig.getOrDefault("allowRetry", false))
+                    .itemCount((Integer) defaultConfig.getOrDefault("itemCount", null))
+                    .shuffleItems((Boolean) defaultConfig.getOrDefault("shuffleItems", false));
+                
+                return configBuilder.build();
+    }
+
+
+}
+        
+        // 3. TERCERO: Configuración fallback por tipo (código existente como respaldo)
+        configBuilder
+                .showTimer(true)
+                .allowPartialScore(true)
+                .showHints(true)
+                .allowRetry(false);
+
+        // Configuración específica por tipo como antes
+        switch (exerciseTypeName.toLowerCase()) {
+            case "drag_and_drop" -> {
+                configBuilder
+                    .maxTime(420) // 7 minutos
+                    .allowPartialScore(true)
+                    .shuffleItems(true)
+                    .itemCount(getItemCount(aiContent));
+            }
+            case "multiple_choice" -> {
+                configBuilder
+                    .maxTime(300) // 5 minutos
+                    .allowPartialScore(false)
+                    .shuffleItems(true);
+            }
+            case "numeric_input" -> {
+                configBuilder
+                    .maxTime(480) // 8 minutos
+                    .allowPartialScore(false)
+                    .shuffleItems(false);
+            }
+            default -> {
+                configBuilder
+                    .maxTime(exerciseTemplate.getEstimatedTimeMinutes() * 60)
+                    .allowPartialScore(false)
+                    .shuffleItems(false);
+            }
+        }
+
         return configBuilder.build();
     }
 
@@ -588,7 +688,7 @@ public class ExerciseServiceImpl implements ExerciseService {
 
     /**
      * Mapea un Exercise template a NextExerciseDto (para compatibilidad hacia atrás)
-     * TODO: Este método se eliminará cuando se complete la migración al nuevo flujo
+     * Este método se eliminará cuando se complete la migración al nuevo flujo
      */
     private ExerciseResponseDto.NextExerciseDto mapToNextExerciseDto(
             Exercise exercise, LearningPoint learningPoint, String exerciseTypeName, 
@@ -783,6 +883,145 @@ public class ExerciseServiceImpl implements ExerciseService {
         } catch (Exception e) {
             log.warn("Error parseando JSON array '{}': {}", jsonArray, e.getMessage());
             return new ArrayList<>();
+        }
+    }
+
+    /**
+     * NUEVO: Busca el siguiente ejercicio template para un learning point usando la tabla intermedia
+     * Reemplaza el método deprecated findNextExerciseForLearningPoint
+     */
+    private Optional<Exercise> findNextExerciseTemplateForLearningPoint(Integer studentId, Integer learningPointId, String difficulty) {
+        try {
+            // 1. Buscar el siguiente ejercicio pendiente en learning_point_exercise
+            Optional<com.gamified.application.learning.model.entity.LearningPointExercise> nextPendingOpt = 
+                    learningPointExerciseService.getNextPendingExercise(learningPointId);
+            
+            if (nextPendingOpt.isEmpty()) {
+                log.warn("No hay ejercicios pendientes para learning point {}", learningPointId);
+                return Optional.empty();
+            }
+            
+            // 2. Obtener la plantilla de ejercicio correspondiente
+            Integer exerciseTemplateId = nextPendingOpt.get().getExerciseTemplateId();
+            Optional<Exercise> exerciseTemplateOpt = exerciseRepository.findExerciseById(exerciseTemplateId);
+            
+            if (exerciseTemplateOpt.isEmpty()) {
+                log.error("Exercise template {} no encontrado para learning point {}", exerciseTemplateId, learningPointId);
+                return Optional.empty();
+            }
+            
+            return exerciseTemplateOpt;
+            
+        } catch (Exception e) {
+            log.error("Error buscando exercise template para learning point {}: {}", learningPointId, e.getMessage(), e);
+            return Optional.empty();
+        }
+    }
+
+    /**
+     * NUEVO: Genera dinámicamente ejercicios para un learning point cuando no hay pre-asignados
+     * Basado en el learning path del estudiante, su nivel actual, competencias y unit relacionada
+     */
+    private ExerciseResponseDto.NextExerciseDto generateDynamicExercisesForLearningPoint(
+            Integer studentId, Integer learningPointId, String difficulty) {
+        
+        log.info("Iniciando generación dinámica de ejercicios para estudiante {} en learning point {}", 
+                studentId, learningPointId);
+        
+        try {
+            // 1. Obtener el learning path del estudiante para este learning point
+            Optional<com.gamified.application.learning.model.entity.LearningPath> learningPathOpt = 
+                    learningRepository.findLearningPathByStudentAndLearningPoint(studentId, learningPointId);
+            
+            if (learningPathOpt.isEmpty()) {
+                throw new ResourceNotFoundException("No se encontró learning path para estudiante " + studentId + " y learning point " + learningPointId);
+            }
+            
+            com.gamified.application.learning.model.entity.LearningPath learningPath = learningPathOpt.get();
+            
+            // 2. Obtener la unit relacionada con este learning path
+            Optional<com.gamified.application.learning.model.entity.Unit> unitOpt = 
+                    learningRepository.findUnitById(learningPath.getUnitsId());
+            
+            if (unitOpt.isEmpty()) {
+                throw new ResourceNotFoundException("Unit no encontrada para learning path " + learningPath.getId());
+            }
+            
+            com.gamified.application.learning.model.entity.Unit unit = unitOpt.get();
+            
+            // 3. Buscar exercise templates disponibles para esta unit
+            List<Exercise> availableTemplates = exerciseRepository.findExercisesByUnitId(unit.getId());
+            
+            if (availableTemplates.isEmpty()) {
+                throw new ResourceNotFoundException("No hay plantillas de ejercicio disponibles para la unit " + unit.getId());
+            }
+            
+            // 4. Filtrar por dificultad si se especifica
+            List<Exercise> filteredTemplates = availableTemplates.stream()
+                    .filter(exercise -> difficulty == null || difficulty.equals(exercise.getDifficulty()))
+                    .collect(Collectors.toList());
+            
+            if (filteredTemplates.isEmpty()) {
+                // Usar todas las plantillas si el filtro por dificultad no devuelve resultados
+                filteredTemplates = availableTemplates;
+                log.warn("No se encontraron ejercicios con dificultad {}, usando todos los disponibles", difficulty);
+            }
+            
+            // 5. Generar 1 ejercicio y asignarlo al learning point
+            int exercisesToGenerate = 1; // CORREGIDO: Solo generar 1 ejercicio por petición
+            List<com.gamified.application.learning.model.entity.LearningPointExercise> assignedExercises = new ArrayList<>();
+            
+            for (int i = 0; i < exercisesToGenerate; i++) {
+                Exercise template = filteredTemplates.get(i % filteredTemplates.size());
+                
+                // Generar ejercicio usando la IA
+                GeneratedExercise generatedExercise = generateNewExercise(template, 
+                        learningRepository.findLearningPointById(learningPointId).get(), studentId, difficulty);
+                
+                // Asignar ejercicio al learning point
+                com.gamified.application.learning.model.entity.LearningPointExercise assignment = 
+                        com.gamified.application.learning.model.entity.LearningPointExercise.builder()
+                        .learningPointId(learningPointId)
+                        .generatedExerciseId(generatedExercise.getId())
+                        .exerciseTemplateId(template.getId())
+                        .sequenceOrder(i + 1)
+                        .isCompleted(0)
+                        .assignedAt(LocalDateTime.now())
+                        .isActive(1)
+                        .build();
+                
+                Integer assignmentId = learningPointExerciseService.assignExercise(assignment);
+                assignment.setId(assignmentId);
+                assignedExercises.add(assignment);
+                
+                log.info("Ejercicio {} asignado dinámicamente a learning point {} con sequence_order {}", 
+                        generatedExercise.getId(), learningPointId, i + 1);
+            }
+            
+            // 6. Retornar el primer ejercicio generado
+            com.gamified.application.learning.model.entity.LearningPointExercise firstAssignment = assignedExercises.get(0);
+            Optional<GeneratedExercise> firstGeneratedExerciseOpt = 
+                    generatedExerciseRepository.findById(firstAssignment.getGeneratedExerciseId());
+            
+            if (firstGeneratedExerciseOpt.isEmpty()) {
+                throw new RuntimeException("Error recuperando el primer ejercicio generado");
+            }
+            
+            GeneratedExercise firstGeneratedExercise = firstGeneratedExerciseOpt.get();
+            Optional<Exercise> firstTemplateOpt = exerciseRepository.findExerciseById(firstAssignment.getExerciseTemplateId());
+            Exercise firstTemplate = firstTemplateOpt.get();
+            
+            Optional<LearningPoint> learningPointOpt = learningRepository.findLearningPointById(learningPointId);
+            LearningPoint learningPoint = learningPointOpt.get();
+            
+            log.info("Generación dinámica completada. Retornando primer ejercicio con ID {}", firstGeneratedExercise.getId());
+            
+            return buildNextExerciseResponse(firstGeneratedExercise, firstTemplate, learningPoint, false, 0);
+            
+        } catch (Exception e) {
+            log.error("Error durante la generación dinámica de ejercicios para learning point {}: {}", 
+                    learningPointId, e.getMessage(), e);
+            throw new RuntimeException("No se pudieron generar ejercicios dinámicamente: " + e.getMessage());
         }
     }
 }

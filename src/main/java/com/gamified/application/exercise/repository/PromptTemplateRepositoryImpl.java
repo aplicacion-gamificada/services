@@ -31,7 +31,7 @@ public class PromptTemplateRepositoryImpl implements PromptTemplateRepository {
             parameters.addValue("id", id, Types.INTEGER);
 
             String sql = """
-                SELECT id, name, template_text, exercise_type_id, created_at, updated_at
+                SELECT id, name, template_text, exercise_subtype, created_at, updated_at
                 FROM prompt_template 
                 WHERE id = :id
                 """;
@@ -121,7 +121,7 @@ public class PromptTemplateRepositoryImpl implements PromptTemplateRepository {
             parameters.addValue("name", name, Types.VARCHAR);
 
             String sql = """
-                SELECT id, name, template_text, exercise_type_id, created_at, updated_at
+                SELECT id, name, template_text, exercise_subtype, created_at, updated_at
                 FROM prompt_template 
                 WHERE name = :name
                 """;
@@ -174,11 +174,14 @@ public class PromptTemplateRepositoryImpl implements PromptTemplateRepository {
         MapSqlParameterSource parameters = new MapSqlParameterSource();
         parameters.addValue("name", template.getName(), Types.VARCHAR);
         parameters.addValue("template_text", template.getTemplateText(), Types.VARCHAR);
-        parameters.addValue("exercise_type_id", template.getExerciseTypeId(), Types.INTEGER);
+        parameters.addValue("exercise_subtype", template.getExerciseSubtype(), Types.VARCHAR);
+        parameters.addValue("generation_parameters", template.getGenerationParameters(), Types.VARCHAR);
+        parameters.addValue("validation_rules", template.getValidationRules(), Types.VARCHAR);
+        parameters.addValue("sample_output", template.getSampleOutput(), Types.VARCHAR);
 
         String sql = """
-            INSERT INTO prompt_template (name, template_text, exercise_type_id, created_at, updated_at)
-            VALUES (:name, :template_text, :exercise_type_id, GETDATE(), GETDATE())
+            INSERT INTO prompt_template (name, template_text, exercise_subtype, generation_parameters, validation_rules, sample_output, created_at, updated_at)
+            VALUES (:name, :template_text, :exercise_subtype, :generation_parameters, :validation_rules, :sample_output, GETDATE(), GETDATE())
             """;
 
         KeyHolder keyHolder = new GeneratedKeyHolder();
@@ -193,13 +196,19 @@ public class PromptTemplateRepositoryImpl implements PromptTemplateRepository {
         parameters.addValue("id", template.getId(), Types.INTEGER);
         parameters.addValue("name", template.getName(), Types.VARCHAR);
         parameters.addValue("template_text", template.getTemplateText(), Types.VARCHAR);
-        parameters.addValue("exercise_type_id", template.getExerciseTypeId(), Types.INTEGER);
+        parameters.addValue("exercise_subtype", template.getExerciseSubtype(), Types.VARCHAR);
+        parameters.addValue("generation_parameters", template.getGenerationParameters(), Types.VARCHAR);
+        parameters.addValue("validation_rules", template.getValidationRules(), Types.VARCHAR);
+        parameters.addValue("sample_output", template.getSampleOutput(), Types.VARCHAR);
 
         String sql = """
             UPDATE prompt_template 
             SET name = :name, 
                 template_text = :template_text, 
-                exercise_type_id = :exercise_type_id,
+                exercise_subtype = :exercise_subtype,
+                generation_parameters = :generation_parameters,
+                validation_rules = :validation_rules,
+                sample_output = :sample_output,
                 updated_at = GETDATE()
             WHERE id = :id
             """;
@@ -212,7 +221,11 @@ public class PromptTemplateRepositoryImpl implements PromptTemplateRepository {
                 .id((Integer) data.get("id"))
                 .name((String) data.get("name"))
                 .templateText((String) data.get("template_text"))
-                .exerciseTypeId((Integer) data.get("exercise_type_id"))
+                // ===== CORREGIDO: Mapear los nuevos campos =====
+                .exerciseSubtype((String) data.get("exercise_subtype"))
+                .generationParameters((String) data.get("generation_parameters"))
+                .validationRules((String) data.get("validation_rules"))
+                .sampleOutput((String) data.get("sample_output"))
                 .createdAt(data.get("created_at") != null ? ((java.sql.Timestamp) data.get("created_at")).toLocalDateTime() : null)
                 .updatedAt(data.get("updated_at") != null ? ((java.sql.Timestamp) data.get("updated_at")).toLocalDateTime() : null)
                 .build();

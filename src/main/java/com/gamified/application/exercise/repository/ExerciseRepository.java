@@ -51,6 +51,16 @@ public interface ExerciseRepository {
     List<Exercise> findExercisesByLearningPoint(Integer learningPointId);
     
     /**
+     * Busca ejercicios por tipo y subtipo específico
+     */
+    List<Exercise> findByExerciseTypeIdAndSubtype(Integer exerciseTypeId, String exerciseSubtype);
+    
+    /**
+     * Busca ejercicios plantilla por unit_id
+     */
+    List<Exercise> findExercisesByUnit(Integer unitId);
+    
+    /**
      * Cuenta ejercicios completados por estudiante en un learning point
      */
     Integer countCompletedExercisesByStudentAndLearningPoint(Integer studentProfileId, Integer learningPointId);
@@ -95,9 +105,19 @@ public interface ExerciseRepository {
     Integer countAttemptsByStudentAndExercise(Integer studentProfileId, Integer exerciseId);
     
     /**
-     * Cuenta total de intentos de un estudiante en una plantilla de ejercicio
+     * Cuenta intentos de ejercicio por estudiante y plantilla
+     * @param studentId ID del estudiante
+     * @param exerciseTemplateId ID de la plantilla de ejercicio
+     * @return Número de intentos
      */
-    Integer countAttemptsByStudentAndTemplate(Integer studentProfileId, Integer exerciseTemplateId);
+    Integer countAttemptsByStudentAndTemplate(Integer studentId, Integer exerciseTemplateId);
+    
+    /**
+     * Busca ejercicios por unit ID
+     * @param unitId ID de la unidad
+     * @return Lista de ejercicios de la unidad
+     */
+    List<Exercise> findExercisesByUnitId(Integer unitId);
     
     // ===================================================================
     // ANALYTICS & STATISTICS

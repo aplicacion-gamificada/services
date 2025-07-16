@@ -1,7 +1,7 @@
 package com.gamified.application.achievement.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.gamified.application.achievement.model.Achievement;
+//import com.gamified.application.achievement.model.Achievement;
 import com.gamified.application.achievement.repository.IAchievementRepository;
 import com.gamified.application.notification.service.NotificationService;
 import com.gamified.application.shared.model.dto.engine.AchievementRuleDto;
@@ -12,7 +12,7 @@ import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
-import java.util.HashMap;
+//import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 

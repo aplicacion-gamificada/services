@@ -275,7 +275,7 @@ public class NotificationService {
     @EventListener
     public void handleAchievementUnlockedEvent(Object event) {
         // TODO: Implementar cuando se definan los eventos específicos
-        logger.info("Procesando evento de logro desbloqueado: {}", event);
+        //logger.info("Procesando evento de logro desbloqueado: {}", event);
     }
 
     // Clases auxiliares para mapeo de datos

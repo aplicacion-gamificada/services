@@ -1,7 +1,7 @@
 package com.gamified.application.achievement.repository.impl;
 
 import com.gamified.application.achievement.repository.IAchievementRepository;
-import com.gamified.application.config.DatabaseConfig;
+//import com.gamified.application.config.DatabaseConfig;
 import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;

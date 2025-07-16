@@ -5,6 +5,8 @@ import com.gamified.application.learning.model.entity.Specialization;
 import com.gamified.application.learning.model.entity.Unit;
 import com.gamified.application.learning.model.entity.LearningPoint;
 import com.gamified.application.learning.model.entity.Lesson;
+import com.gamified.application.learning.model.entity.LearningPath;
+import com.gamified.application.exercise.model.entity.Exercise;
 
 import java.util.List;
 import java.util.Optional;
@@ -138,6 +140,32 @@ public interface LearningRepository {
     Optional<Lesson> findNextLesson(Integer learningPointId, Integer currentSequence);
     
     // ===================================================================
+    // LEARNING PATHS
+    // ===================================================================
+
+    /**
+     * Busca un learning path por ID
+     * @param learningPathId ID del learning path
+     * @return Learning path si existe
+     */
+    Optional<com.gamified.application.learning.model.entity.LearningPath> findLearningPathById(Integer learningPathId);
+
+    /**
+     * Busca learning path por estudiante y learning point
+     * @param studentId ID del estudiante
+     * @param learningPointId ID del learning point
+     * @return Learning path si existe
+     */
+    Optional<com.gamified.application.learning.model.entity.LearningPath> findLearningPathByStudentAndLearningPoint(Integer studentId, Integer learningPointId);
+
+    /**
+     * Busca learning paths activos de un estudiante
+     * @param studentId ID del estudiante
+     * @return Lista de learning paths del estudiante
+     */
+    List<com.gamified.application.learning.model.entity.LearningPath> findLearningPathsByStudent(Integer studentId);
+    
+    // ===================================================================
     // CONTEOS (para DTOs)
     // ===================================================================
     
@@ -182,4 +210,5 @@ public interface LearningRepository {
      * @return Número de ejercicios
      */
     Integer countExercisesByLearningPoint(Integer learningPointId);
+
 } 

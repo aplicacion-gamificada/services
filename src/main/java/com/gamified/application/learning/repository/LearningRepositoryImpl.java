@@ -474,6 +474,97 @@ public class LearningRepositoryImpl implements LearningRepository {
     }
 
     // ===================================================================
+    // LEARNING PATHS
+    // ===================================================================
+
+    @Override
+    public Optional<com.gamified.application.learning.model.entity.LearningPath> findLearningPathById(Integer learningPathId) {
+        try {
+            MapSqlParameterSource parameters = new MapSqlParameterSource();
+            parameters.addValue("learning_path_id", learningPathId, Types.INTEGER);
+
+            String sql = """
+                SELECT id, student_profile_id, adaptive_intervention_id, current_learning_point_id, 
+                       units_id, completion_percentage, difficulty_adjustment, is_active, 
+                       created_at, updated_at 
+                FROM learning_path 
+                WHERE id = :learning_path_id
+                """;
+            
+            List<Map<String, Object>> results = namedParameterJdbcTemplate.queryForList(sql, parameters);
+            
+            if (results.isEmpty()) {
+                return Optional.empty();
+            }
+            
+            return Optional.of(mapLearningPathFromResultMap(results.get(0)));
+        } catch (Exception e) {
+            System.err.println("Error al buscar learning path por ID " + learningPathId + ": " + e.getMessage());
+            return Optional.empty();
+        }
+    }
+
+    @Override
+    public Optional<com.gamified.application.learning.model.entity.LearningPath> findLearningPathByStudentAndLearningPoint(Integer studentId, Integer learningPointId) {
+        try {
+            MapSqlParameterSource parameters = new MapSqlParameterSource();
+            parameters.addValue("student_id", studentId, Types.INTEGER);
+            parameters.addValue("learning_point_id", learningPointId, Types.INTEGER);
+
+            String sql = """
+                SELECT lpath.id, lpath.student_profile_id, lpath.adaptive_intervention_id, 
+                       lpath.current_learning_point_id, lpath.units_id, lpath.completion_percentage, 
+                       lpath.difficulty_adjustment, lpath.is_active, lpath.created_at, lpath.updated_at 
+                FROM learning_path lpath
+                JOIN learning_point lp ON lp.learning_path_id = lpath.id
+                WHERE lpath.student_profile_id = :student_id 
+                  AND lp.id = :learning_point_id 
+                  AND lpath.is_active = 1
+                """;
+            
+            List<Map<String, Object>> results = namedParameterJdbcTemplate.queryForList(sql, parameters);
+            
+            if (results.isEmpty()) {
+                return Optional.empty();
+            }
+            
+            return Optional.of(mapLearningPathFromResultMap(results.get(0)));
+        } catch (Exception e) {
+            System.err.println("Error al buscar learning path por estudiante " + studentId + " y learning point " + learningPointId + ": " + e.getMessage());
+            return Optional.empty();
+        }
+    }
+
+    @Override
+    public List<com.gamified.application.learning.model.entity.LearningPath> findLearningPathsByStudent(Integer studentId) {
+        try {
+            MapSqlParameterSource parameters = new MapSqlParameterSource();
+            parameters.addValue("student_id", studentId, Types.INTEGER);
+
+            String sql = """
+                SELECT TOP 100 id, student_profile_id, adaptive_intervention_id, current_learning_point_id, 
+                       units_id, completion_percentage, difficulty_adjustment, is_active, 
+                       created_at, updated_at 
+                FROM learning_path 
+                WHERE student_profile_id = :student_id AND is_active = 1
+                ORDER BY created_at DESC
+                """;
+            
+            List<Map<String, Object>> results = namedParameterJdbcTemplate.queryForList(sql, parameters);
+            
+            List<com.gamified.application.learning.model.entity.LearningPath> learningPaths = new ArrayList<>();
+            for (Map<String, Object> row : results) {
+                learningPaths.add(mapLearningPathFromResultMap(row));
+            }
+            
+            return learningPaths;
+        } catch (Exception e) {
+            System.err.println("Error al obtener learning paths del estudiante " + studentId + ": " + e.getMessage());
+            return new ArrayList<>();
+        }
+    }
+
+    // ===================================================================
     // MAPPERS
     // ===================================================================
 
@@ -539,12 +630,26 @@ public class LearningRepositoryImpl implements LearningRepository {
     private Lesson mapLessonFromResultMap(Map<String, Object> data) {
         return Lesson.builder()
                 .id((Integer) data.get("id"))
-                .learningPointId((Integer) data.get("learning_point_id"))
+                .unitId((Integer) data.get("unit_id"))
                 .title((String) data.get("title"))
                 .contentData((String) data.get("content_data"))
-                .sequenceOrder((Integer) data.get("sequence_order"))
                 .estimatedReadingTime((Integer) data.get("estimated_reading_time"))
                 .isMandatory((Integer) data.get("is_mandatory"))
+                .createdAt(DatabaseUtils.safeToLocalDateTime(data.get("created_at")))
+                .updatedAt(DatabaseUtils.safeToLocalDateTime(data.get("updated_at")))
+                .build();
+    }
+
+    private com.gamified.application.learning.model.entity.LearningPath mapLearningPathFromResultMap(Map<String, Object> data) {
+        return com.gamified.application.learning.model.entity.LearningPath.builder()
+                .id((Integer) data.get("id"))
+                .studentProfileId((Integer) data.get("student_profile_id"))
+                .adaptiveInterventionId((Integer) data.get("adaptive_intervention_id"))
+                .currentLearningPointId((Integer) data.get("current_learning_point_id"))
+                .unitsId((Integer) data.get("units_id"))
+                .completionPercentage(DatabaseUtils.safeToBigDecimal(data.get("completion_percentage")))
+                .difficultyAdjustment(DatabaseUtils.safeToBigDecimal(data.get("difficulty_adjustment")))
+                .isActive((Integer) data.get("is_active"))
                 .createdAt(DatabaseUtils.safeToLocalDateTime(data.get("created_at")))
                 .updatedAt(DatabaseUtils.safeToLocalDateTime(data.get("updated_at")))
                 .build();

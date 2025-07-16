@@ -127,8 +127,8 @@ public class ExerciseRepositoryImpl implements ExerciseRepository {
 
             String sql = """
                 SELECT id, exercise_type_id, competency_id, difficulty_level_id, title, 
-                       description, instructions, learning_point_id, estimated_time, 
-                       points_value, sequence_order, prompt_template_id, created_at, updated_at
+                       description, instructions, estimated_time, 
+                       points_value, created_at, updated_at
                 FROM exercise WHERE id = :exercise_id
                 """;
             
@@ -155,19 +155,26 @@ public class ExerciseRepositoryImpl implements ExerciseRepository {
             parameters.addValue("title", exercise.getTitle(), Types.VARCHAR);
             parameters.addValue("description", exercise.getDescription(), Types.VARCHAR);
             parameters.addValue("instructions", exercise.getInstructions(), Types.VARCHAR);
-            parameters.addValue("learning_point_id", exercise.getLearningPointId(), Types.INTEGER);
+            parameters.addValue("unit_id", exercise.getUnitId(), Types.INTEGER);
             parameters.addValue("estimated_time", exercise.getEstimatedTime(), Types.INTEGER);
             parameters.addValue("points_value", exercise.getPointsValue(), Types.INTEGER);
-            parameters.addValue("sequence_order", exercise.getSequenceOrder(), Types.INTEGER);
             parameters.addValue("prompt_template_id", exercise.getPromptTemplateId(), Types.INTEGER);
+            parameters.addValue("exercise_config", exercise.getExerciseConfig(), Types.VARCHAR);
+            parameters.addValue("exercise_subtype", exercise.getExerciseSubtype(), Types.VARCHAR);
+            parameters.addValue("generation_rules", exercise.getGenerationRules(), Types.VARCHAR);
+            parameters.addValue("difficulty_parameters", exercise.getDifficultyParameters(), Types.VARCHAR);
 
             String sql = """
                 INSERT INTO exercise (exercise_type_id, competency_id, difficulty_level_id, title, 
-                                    description, instructions, learning_point_id, estimated_time, 
-                                    points_value, sequence_order, prompt_template_id, created_at, updated_at)
+                                    description, instructions, unit_id, estimated_time, 
+                                    points_value, prompt_template_id, 
+                                    exercise_config, exercise_subtype, generation_rules, difficulty_parameters,
+                                    created_at, updated_at)
                 VALUES (:exercise_type_id, :competency_id, :difficulty_level_id, :title, 
-                        :description, :instructions, :learning_point_id, :estimated_time, 
-                        :points_value, :sequence_order, :prompt_template_id, GETDATE(), GETDATE())
+                        :description, :instructions, :unit_id, :estimated_time, 
+                        :points_value, :prompt_template_id,
+                        :exercise_config, :exercise_subtype, :generation_rules, :difficulty_parameters,
+                        GETDATE(), GETDATE())
                 """;
 
             KeyHolder keyHolder = new GeneratedKeyHolder();
@@ -182,18 +189,19 @@ public class ExerciseRepositoryImpl implements ExerciseRepository {
     }
 
     @Override
-    public List<Exercise> findExercisesByLearningPoint(Integer learningPointId) {
+    public List<Exercise> findExercisesByUnit(Integer unitId) {
         try {
             MapSqlParameterSource parameters = new MapSqlParameterSource();
-            parameters.addValue("learning_point_id", learningPointId, Types.INTEGER);
+            parameters.addValue("unit_id", unitId, Types.INTEGER);
 
             String sql = """
                 SELECT TOP 100 id, exercise_type_id, competency_id, difficulty_level_id, title, 
-                       description, instructions, learning_point_id, estimated_time, 
-                       points_value, sequence_order, prompt_template_id, created_at, updated_at
+                       description, instructions, unit_id, estimated_time, 
+                       points_value, prompt_template_id, exercise_config, exercise_subtype,
+                       generation_rules, difficulty_parameters, created_at, updated_at
                 FROM exercise 
-                WHERE learning_point_id = :learning_point_id
-                ORDER BY sequence_order, created_at DESC
+                WHERE unit_id = :unit_id
+                ORDER BY created_at DESC
                 """;
             
             List<Map<String, Object>> results = namedParameterJdbcTemplate.queryForList(sql, parameters);
@@ -205,9 +213,18 @@ public class ExerciseRepositoryImpl implements ExerciseRepository {
             
             return exercises;
         } catch (Exception e) {
-            System.err.println("Error al obtener ejercicios por learning point " + learningPointId + ": " + e.getMessage());
+            System.err.println("Error al obtener ejercicios por unit " + unitId + ": " + e.getMessage());
             return new ArrayList<>();
         }
+    }
+
+    @Override
+    @Deprecated
+    public List<Exercise> findExercisesByLearningPoint(Integer learningPointId) {
+        // MÉTODO DEPRECATED - ahora los ejercicios están en learning_point_exercise
+        // Retornar lista vacía para compatibilidad
+        System.err.println("DEPRECATED: findExercisesByLearningPoint - usar LearningPointExerciseRepository");
+        return new ArrayList<>();
     }
 
     @Override
@@ -237,6 +254,28 @@ public class ExerciseRepositoryImpl implements ExerciseRepository {
         } catch (Exception e) {
             System.err.println("Error al contar ejercicios completados: " + e.getMessage());
             return 0;
+        }
+    }
+
+    @Override
+    public List<Exercise> findByExerciseTypeIdAndSubtype(Integer exerciseTypeId, String exerciseSubtype) {
+        try {
+            String sql = """
+                SELECT * FROM exercise 
+                WHERE exercise_type_id = :exercise_type_id 
+                AND exercise_subtype = :exercise_subtype
+                ORDER BY difficulty_level_id ASC, sequence_order ASC
+                """;
+            
+            MapSqlParameterSource parameters = new MapSqlParameterSource();
+            parameters.addValue("exercise_type_id", exerciseTypeId, Types.INTEGER);
+            parameters.addValue("exercise_subtype", exerciseSubtype, Types.VARCHAR);
+            
+            List<Map<String, Object>> results = namedParameterJdbcTemplate.queryForList(sql, parameters);
+            return results.stream().map(this::mapExerciseFromResultMap).toList();
+        } catch (Exception e) {
+            System.err.println("Error al buscar ejercicios por tipo y subtipo: " + e.getMessage());
+            return List.of();
         }
     }
 
@@ -617,9 +656,13 @@ public class ExerciseRepositoryImpl implements ExerciseRepository {
                 .id(((Number) data.get("id")).intValue())
                 .name((String) data.get("name"))
                 .description((String) data.get("description"))
+                .supportedSubtypes((String) data.get("supported_subtypes"))
+                .defaultConfig((String) data.get("default_config"))
+                .validationRules((String) data.get("validation_rules"))
+                .generationStrategy((String) data.get("generation_strategy"))
                 // Campos removidos: difficulty_level y status no existen en el esquema UML
-                .difficultyLevel(null) // Se puede derivar de ejercicios individuales si es necesario
-                .status(1) // Asumimos activo por defecto
+                //.difficultyLevel(null) // Se puede derivar de ejercicios individuales si es necesario
+                //.status(1) // Asumimos activo por defecto
                 .build();
     }
 
@@ -632,15 +675,17 @@ public class ExerciseRepositoryImpl implements ExerciseRepository {
                 .title((String) data.get("title"))
                 .description((String) data.get("description"))
                 .instructions((String) data.get("instructions"))
-                .learningPointId(((Number) data.get("learning_point_id")).intValue())
+                .unitId(data.get("unit_id") != null ? ((Number) data.get("unit_id")).intValue() : null)
                 .estimatedTime(data.get("estimated_time") != null ? 
                     ((Number) data.get("estimated_time")).intValue() : null)
                 .pointsValue(data.get("points_value") != null ? 
                     ((Number) data.get("points_value")).intValue() : null)
-                .sequenceOrder(data.get("sequence_order") != null ? 
-                    ((Number) data.get("sequence_order")).intValue() : null)
                 .promptTemplateId(data.get("prompt_template_id") != null ? 
                     ((Number) data.get("prompt_template_id")).intValue() : null)
+                .exerciseConfig((String) data.get("exercise_config"))
+                .exerciseSubtype((String) data.get("exercise_subtype"))
+                .generationRules((String) data.get("generation_rules"))
+                .difficultyParameters((String) data.get("difficulty_parameters"))
                 .createdAt(data.get("created_at") != null ? 
                     ((java.sql.Timestamp) data.get("created_at")).toLocalDateTime() : null)
                 .updatedAt(data.get("updated_at") != null ? 
@@ -668,5 +713,35 @@ public class ExerciseRepositoryImpl implements ExerciseRepository {
                 .generatedExerciseId(data.get("generated_exercise_id") != null ? 
                     ((Number) data.get("generated_exercise_id")).longValue() : null)
                 .build();
+    }
+
+    @Override
+    public List<Exercise> findExercisesByUnitId(Integer unitId) {
+        try {
+            MapSqlParameterSource parameters = new MapSqlParameterSource();
+            parameters.addValue("unit_id", unitId, Types.INTEGER);
+
+            String sql = """
+                SELECT TOP 100 id, exercise_type_id, competency_id, difficulty_level_id, 
+                       title, description, instructions, estimated_time, points_value,
+                       created_at, updated_at, prompt_template_id, exercise_config,
+                       exercise_subtype, generation_rules, difficulty_parameters, unit_id
+                FROM exercise 
+                WHERE unit_id = :unit_id
+                ORDER BY id
+                """;
+            
+            List<Map<String, Object>> results = namedParameterJdbcTemplate.queryForList(sql, parameters);
+            
+            List<Exercise> exercises = new ArrayList<>();
+            for (Map<String, Object> row : results) {
+                exercises.add(mapExerciseFromResultMap(row));
+            }
+            
+            return exercises;
+        } catch (Exception e) {
+            System.err.println("Error al buscar ejercicios por unit ID " + unitId + ": " + e.getMessage());
+            return new ArrayList<>();
+        }
     }
 }

@@ -18,7 +18,7 @@ import java.time.Duration;
 @EnableAsync
 public class ExerciseAIConfig {
 
-    @Value("${azure.ai.foundry.timeout:30}")
+    @Value("${azure.ai.foundry.timeout:60}")
     private Integer timeoutSeconds;
 
     /**

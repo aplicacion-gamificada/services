@@ -53,3 +53,5 @@ GUIA.md
 *.pdf
 /data
 .env
+*.cmd
+*.csv
