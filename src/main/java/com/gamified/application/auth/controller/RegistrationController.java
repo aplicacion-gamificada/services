@@ -3,8 +3,10 @@ package com.gamified.application.auth.controller;
 import com.gamified.application.user.model.dto.request.UserRequestDto;
 import com.gamified.application.shared.model.dto.response.CommonResponseDto;
 import com.gamified.application.user.model.dto.response.UserResponseDto;
-import com.gamified.application.auth.service.auth.TokenService;
 import com.gamified.application.user.service.UserRegistrationService;
+import com.gamified.application.user.service.UserProfileService;
+import com.gamified.application.clasroom.service.ClassroomService;
+import com.gamified.application.clasroom.model.dto.request.ClassroomRequestDto;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -36,8 +38,13 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 public class RegistrationController {
 
     private final UserRegistrationService userRegistrationService;
-    private final TokenService tokenService;
+    private final UserProfileService userProfileService;
+    private final ClassroomService classroomService;
     private final JdbcTemplate jdbcTemplate;
+    
+    // Production testing: IDs for automatic assignment
+    private static final Long PRODUCTION_TEST_GUARDIAN_ID = 1L;
+    private static final Integer PRODUCTION_TEST_CLASSROOM_ID = 1;
 
     /**
      * Endpoint temporal para modificar la tabla student_profile
@@ -106,6 +113,50 @@ public class RegistrationController {
         try {
             // Procesar registro de estudiante
             UserResponseDto.StudentResponseDto response = userRegistrationService.registerStudent(studentRequest);
+            
+            // Production testing: Automatically assign guardian ID 1, institution ID 1, and classroom ID 1
+            try {
+                Long studentProfileId = response.getStudentProfileId();
+                
+                // Get the student profile ID from the response
+                if (studentProfileId != null && studentProfileId > 0) {
+                    System.out.println("DEBUG - Auto-assigning production test data for student: " + studentProfileId);
+                    
+                    // 1. Assign guardian with ID 1
+                    try {
+                        boolean guardianAssigned = userProfileService.assignGuardianToStudent(
+                                studentProfileId, 
+                                PRODUCTION_TEST_GUARDIAN_ID
+                        );
+                        System.out.println("DEBUG - Guardian assignment result: " + guardianAssigned);
+                    } catch (Exception e) {
+                        System.out.println("WARN - Failed to assign guardian: " + e.getMessage());
+                    }
+                    
+                    // 2. Assign to classroom with ID 1
+                    try {
+                        ClassroomRequestDto.EnrollStudentRequestDto enrollRequest = 
+                                new ClassroomRequestDto.EnrollStudentRequestDto();
+                        enrollRequest.setStudentProfileId(Math.toIntExact(studentProfileId));
+                        
+                        // Note: We're using a dummy user ID (1) as the teacher/admin ID for enrollment
+                        // In production, this should be the actual teacher or admin ID
+                        // For testing purposes, we assume user ID 1 is an admin or teacher
+                        classroomService.enrollStudentByAdmin(
+                                1L, // Admin user ID (assumed to be 1 for testing)
+                                PRODUCTION_TEST_CLASSROOM_ID,
+                                enrollRequest
+                        );
+                        System.out.println("DEBUG - Student enrollment result: success");
+                    } catch (Exception e) {
+                        System.out.println("WARN - Failed to enroll student in classroom: " + e.getMessage());
+                    }
+                }
+            } catch (Exception e) {
+                System.out.println("WARN - Error in production testing auto-assignment: " + e.getMessage());
+                // Don't fail the registration if auto-assignment fails
+            }
+            
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             Map<String, Object> errorResponse = new HashMap<>();
