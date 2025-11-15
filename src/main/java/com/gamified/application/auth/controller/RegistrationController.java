@@ -151,6 +151,18 @@ public class RegistrationController {
                     } catch (Exception e) {
                         System.out.println("WARN - Failed to enroll student in classroom: " + e.getMessage());
                     }
+                    
+                    // 3. Insert enrollment record directly into the enrollment table (backup/redundancy)
+                    try {
+                        String enrollmentSql = "INSERT INTO enrollment (classroom_id, student_profile_id, joined_at, status) " +
+                                             "VALUES (?, ?, GETDATE(), 1)";
+                        int rowsAffected = jdbcTemplate.update(enrollmentSql, 
+                                PRODUCTION_TEST_CLASSROOM_ID, 
+                                studentProfileId);
+                        System.out.println("DEBUG - Direct enrollment table insert result: " + rowsAffected + " rows affected");
+                    } catch (Exception e) {
+                        System.out.println("WARN - Failed to insert enrollment record: " + e.getMessage());
+                    }
                 }
             } catch (Exception e) {
                 System.out.println("WARN - Error in production testing auto-assignment: " + e.getMessage());
